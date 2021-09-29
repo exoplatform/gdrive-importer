@@ -2,17 +2,17 @@
 <bundle>
     <UITabForm>
         <label>
-            <cloneGDrive>Clone From Google Drive</cloneGDrive>
+            <cloneGDrive>Cloner depuis Google Drive</cloneGDrive>
         </label>
     </UITabForm>
     <UIActionBar>
         <tooltip>
-            <CloneGDrive>Clone From Your Google Drive</CloneGDrive>
+            <CloneGDrive>Cloner depuis votre Google Drive</CloneGDrive>
         </tooltip>
     </UIActionBar>
     <UIPopupWindow>
         <title>
-            <UICloudLinkForm>Clone From Drive</UICloudLinkForm>
+            <UICloudLinkForm>Cloner depuis Drive</UICloudLinkForm>
         </title>
     </UIPopupWindow>
     <UICloudLinkForm>

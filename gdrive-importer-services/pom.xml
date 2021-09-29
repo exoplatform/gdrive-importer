@@ -12,8 +12,7 @@
     <artifactId>gdrive-importer-services</artifactId>
 
     <properties>
-        <apache-poi.version>5.0.0</apache-poi.version>
-        <apache.poi-ooxml-schemas>4.1.2</apache.poi-ooxml-schemas>
+        <apache-poi.version>4.1.2</apache-poi.version>
     </properties>
 <dependencies>
     <!-- Google API -->
@@ -121,7 +120,7 @@
     <dependency>
         <groupId>org.apache.poi</groupId>
         <artifactId>poi-ooxml-schemas</artifactId>
-        <version>${apache.poi-ooxml-schemas}</version>
+        <version>${apache-poi.version}</version>
     </dependency>
     <dependency>
         <groupId>org.apache.poi</groupId>
@@ -237,5 +236,72 @@
         <type>jar</type>
     </dependency>
 </dependencies>
-
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/java</directory>
+                <includes>
+                    <include>**/*.xml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                    <include>**/*.conf</include>
+                </includes>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <artifactSet>
+                                <includes>
+                                    <include>com.google.api-client:google-api-client</include>
+                                    <include>com.google.oauth-client:google-oauth-client</include>
+                                    <include>com.google.apis:google-api-services-drive</include>
+                                    <include>com.google.apis:google-api-services-oauth2</include>
+                                    <include>com.google.http-client:google-http-client-jackson2</include>
+                                    <include>com.google.http-client:google-http-client</include>
+                                    <!-- Added in 1.8.0 -->
+                                    <include>com.google.j2objc:j2objc-annotations</include>
+                                    <include>io.opencensus:opencensus-api</include>
+                                    <include>io.opencensus:opencensus-contrib-http-util</include>
+                                    <include>io.grpc:grpc-context</include>
+                                    <!-- include>com.fasterxml.jackson.core:jackson-core</include -->
+                                </includes>
+                            </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.google.j2objc</pattern>
+                                    <shadedPattern>org.org.exoplatform.services.cms.clouddrives.gdrive.shaded.google.j2objc</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.google.api</pattern>
+                                    <shadedPattern>org.org.exoplatform.services.cms.clouddrives.gdrive.shaded.google.api</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.opencensus</pattern>
+                                    <shadedPattern>org.org.exoplatform.services.cms.clouddrives.gdrive.shaded.io.opencensus</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.grpc</pattern>
+                                    <shadedPattern>org.org.exoplatform.services.cms.clouddrives.gdrive.shaded.io.grpc</shadedPattern>
+                                </relocation>
+                            </relocations>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

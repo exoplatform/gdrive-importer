@@ -20,7 +20,7 @@
                             <string>CloneGDrive</string>
                         </field>
                         <field name="component">
-                            <string>org.exoplatform.acme.CloneGDriveActionComponent</string>
+                            <string>org.exoplatform.actions.CloneGDriveActionComponent</string>
                         </field>
                         <field name="extendedFilters">
                             <collection type="java.util.ArrayList">

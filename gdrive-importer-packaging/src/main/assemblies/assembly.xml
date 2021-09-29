@@ -19,10 +19,6 @@
       <outputDirectory>/lib</outputDirectory>
       <includes>
         <include>${project.groupId}:*:jar</include>
-        <include>org.apache.poi:poi-scratchpad:jar</include>
-        <include>org.apache.poi:poi-ooxml-schemas:jar</include>
-        <include>org.apache.poi:poi:jar</include>
-        <include>org.apache.poi:poi-ooxml:jar</include>
       </includes>
       <outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>
       <useProjectArtifact>false</useProjectArtifact>

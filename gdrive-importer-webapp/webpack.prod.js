@@ -3,7 +3,7 @@ const merge = require('webpack-merge');
 const webpackCommonConfig = require('./webpack.common.js');
 
 // the display name of the war
-const app = 'gdrive-importer-webapp';
+const app = 'gdrive-importer';
 
 const config = merge(webpackCommonConfig, {
   output: {

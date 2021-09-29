@@ -10,7 +10,7 @@
 				<values-param>
 					<name>changelogs</name>
 					<description>Change logs of Copy GDrive RDBMS</description>
-					<value>db/changelog/copy-gdrive-rdbms.db.changelog.xml</value>
+					<value>db/changelog/gdrive-importer-rdbms.db.changelog.xml</value>
 				</values-param>
 			</init-params>
 		</component-plugin>

@@ -8,7 +8,7 @@ def jsManager = rcontext.getJavascriptManager();
     <div class="VuetifyApp">
         <div id="copy-gdrive-application">
             <%
-            jsManager.require("PORTLET/copy-gdrive-webapp/cpExtensions", "ext").addScripts("ext.init();");
+            jsManager.require("PORTLET/gdrive-importer/cpExtensions", "ext").addScripts("ext.init();");
             %>
         </div>
     </div>
