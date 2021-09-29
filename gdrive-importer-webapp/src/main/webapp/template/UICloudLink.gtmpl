@@ -1,0 +1,16 @@
+<%
+import org.apache.commons.lang.StringUtils;
+def rcontext = _ctx.getRequestContext() ;
+def jsManager = rcontext.getJavascriptManager();
+%>
+<div class="UIForm uiCloudLink">
+    <%uiform.begin()%>
+    <div class="VuetifyApp">
+        <div id="copy-gdrive-application">
+            <%
+            jsManager.require("PORTLET/copy-gdrive-webapp/cpExtensions", "ext").addScripts("ext.init();");
+            %>
+        </div>
+    </div>
+    <%uiform.end()%>
+</div>

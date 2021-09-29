@@ -5,9 +5,9 @@
              xsi:schemaLocation="http://java.sun.com/xml/ns/portlet/portlet-app_2_0.xsd http://java.sun.com/xml/ns/portlet/portlet-app_2_0.xsd">
 
     <portlet>
-        <description xml:lang="EN">Copy-GDrive Extensions</description>
+        <description xml:lang="EN">GDrive Importer Extensions</description>
         <portlet-name>cpExtensions</portlet-name>
-        <display-name xml:lang="EN">Copy-GDrive Extensions</display-name>
+        <display-name xml:lang="EN">GDrive-importer Extensions</display-name>
         <portlet-class>org.exoplatform.commons.api.portlet.GenericDispatchedViewPortlet</portlet-class>
         <init-param>
             <name>portlet-view-dispatched-file-path</name>
@@ -15,7 +15,7 @@
         </init-param>
         <init-param>
             <name>preload.resource.bundles</name>
-            <value>locale.gdrive.acme.CopyGdrive</value>
+            <value>locale.gdriveimporter.gdrive_importer</value>
         </init-param>
         <expiration-cache>-1</expiration-cache>
         <cache-scope>PUBLIC</cache-scope>
@@ -24,9 +24,9 @@
         </supports>
         <supported-locale>en</supported-locale>
         <portlet-info>
-            <title>Copy-GDrive Extensions Portlet</title>
+            <title>GDrive-importer Extensions Portlet</title>
             <short-title>Copy-GDrive Extensions</short-title>
-            <keywords>Copy-GDrive - Copy-GDrive Extensions Portlet</keywords>
+            <keywords>GDrive-importer - GDrive-importer Extensions Portlet</keywords>
         </portlet-info>
     </portlet>
 </portlet-app>
