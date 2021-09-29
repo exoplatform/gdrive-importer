@@ -26,7 +26,7 @@
         </label>
         <title>Clone Folders/Files From Drive</title>
         <msg>
-            <folder.cloned>Folder has been successfully cloned</folder.cloned>
+            <action.option>Folder or file link in Google Drive</action.option>
             <action.info>If you don't specify a link, all the data in the drive will be cloned.</action.info>
         </msg>
         <help/>
