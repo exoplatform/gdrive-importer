@@ -27,7 +27,7 @@
         <title>Clone Folders/Files From Drive</title>
         <msg>
             <folder.cloned>Folder has been successfully cloned</folder.cloned>
-            <folder.cloned>Si vous ne spécifiez pas de lien, toutes les données du lecteur seront clonées.</folder.cloned>
+            <action.info>Si vous ne spécifiez pas de lien, toutes les données du lecteur seront clonées.</action.info>
         </msg>
         <help/>
     </UICloudLinkForm>
