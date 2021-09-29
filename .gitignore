@@ -1,0 +1,45 @@
+# Binaries
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.war
+*.ear
+*.sar
+*.class
+
+# Maven 
+target/
+pom.xml.versionsBackup
+
+# IntelliJ project files 
+*.iml
+*.iws
+*.ipr
+.idea/
+
+# eclipse project file
+.settings/
+.classpath
+.project
+*.log
+
+# hotswap-agent file
+hotswap-agent.properties
+
+# OS
+.DS_Store
+
+# Misc
+*.swp
+*.log
+rebel.xml
+rebel-remote.xml
+build
+npm-debug.log
+node_modules
+/bin/
