@@ -21,7 +21,7 @@
             <Clone>connecter et cloner votre google drive</Clone>
         </action>
         <label>
-            <titleTextBox>Folder Or File Link in Google Drive:</titleTextBox>
+            <titleTextBox>Lien de dossier ou de fichier dans Google Drive:</titleTextBox>
             <customTypeCheckBox>Use a custom type of folder</customTypeCheckBox>
         </label>
         <title>Clone Folders/Files From Drive</title>
