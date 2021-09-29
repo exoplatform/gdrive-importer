@@ -14,11 +14,11 @@
     <property name="now" value="sysdate" dbms="oracle"/>
     <property name="now" value="CURRENT_TIMESTAMP" dbms="mssql"/>
 
-    <changeSet author="agenda" id="1.0.0-0" dbms="oracle,postgresql">
+    <changeSet author="gdrive-importer" id="1.0.0-0" dbms="oracle,postgresql">
         <createSequence sequenceName="SEQ_COPY_GDRIVE_Cl_GFILE_ID" startValue="1"/>
     </changeSet>
 
-    <changeSet author="copy_gdrive" id="1.0.0-1">
+    <changeSet author="gdrive-importer" id="1.0.0-1">
         <createTable tableName="COPY_GDRIVE_CL_GFILE">
             <column name="CL_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="PK_GDRIVE_CL_GFILE"/>
