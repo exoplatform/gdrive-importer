@@ -16,6 +16,7 @@
   <modules>
     <module>gdrive-importer-webapp</module>
     <module>gdrive-importer-packaging</module>
+    <module>gdrive-importer-services</module>
   </modules>
   <scm>
     <connection>scm:git:git://github.com/exoplatform/gdrive-importer.git</connection>
@@ -26,6 +27,7 @@
   <properties>
     <!-- 3rd party libraries versions -->
     <org.exoplatform.social.version>6.3.x-SNAPSHOT</org.exoplatform.social.version>
+    <org.exoplatform.ecms.version>6.3.x-SNAPSHOT</org.exoplatform.ecms.version>
 
     <!-- Sonar properties -->
     <sonar.organization>exoplatform</sonar.organization>
@@ -40,8 +42,21 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-
+      <dependency>
+        <groupId>org.exoplatform.ecms</groupId>
+        <artifactId>ecms</artifactId>
+        <version>${org.exoplatform.ecms.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <!-- Current project artifacts -->
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>gdrive-importer-services</artifactId>
+        <version>${project.version}</version>
+        <scope>provided</scope>
+        <type>jar</type>
+      </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
         <artifactId>gdrive-importer-webapp</artifactId>

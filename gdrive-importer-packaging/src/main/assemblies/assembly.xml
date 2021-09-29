@@ -6,15 +6,27 @@
   </formats>
   <includeBaseDirectory>false</includeBaseDirectory>
   <dependencySets>
-    <!-- Libraries -->
     <dependencySet>
-      <useProjectArtifact>false</useProjectArtifact>
-      <outputDirectory>/</outputDirectory>
+      <outputDirectory>/webapps</outputDirectory>
       <includes>
-        <include>*:*:war</include>
+        <include>${project.groupId}:gdrive-importer-webapp</include>
       </includes>
+      <outputFileNameMapping>${artifact.build.finalName}.${artifact.extension}</outputFileNameMapping>
+      <useProjectArtifact>false</useProjectArtifact>
       <scope>provided</scope>
-      <outputFileNameMapping>${artifact.build.finalName}.war</outputFileNameMapping>
+    </dependencySet>
+    <dependencySet>
+      <outputDirectory>/lib</outputDirectory>
+      <includes>
+        <include>${project.groupId}:*:jar</include>
+        <include>org.apache.poi:poi-scratchpad:jar</include>
+        <include>org.apache.poi:poi-ooxml-schemas:jar</include>
+        <include>org.apache.poi:poi:jar</include>
+        <include>org.apache.poi:poi-ooxml:jar</include>
+      </includes>
+      <outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>
+      <useProjectArtifact>false</useProjectArtifact>
+      <scope>provided</scope>
     </dependencySet>
   </dependencySets>
 </assembly>

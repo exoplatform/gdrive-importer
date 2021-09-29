@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<bundle>
+    <UITabForm>
+        <label>
+            <cloneGDrive>Clone From Google Drive</cloneGDrive>
+        </label>
+    </UITabForm>
+    <UIActionBar>
+        <tooltip>
+            <CloneGDrive>Clone From Your Google Drive</CloneGDrive>
+        </tooltip>
+    </UIActionBar>
+    <UIPopupWindow>
+        <title>
+            <UICloudLinkForm>Clone From Drive</UICloudLinkForm>
+        </title>
+    </UIPopupWindow>
+    <UICloudLinkForm>
+        <action>
+            <Cancel>Cancel</Cancel>
+            <Clone>Connect and Clone your Google Drive</Clone>
+        </action>
+        <label>
+            <titleTextBox>Folder Or File Link in Google Drive:</titleTextBox>
+            <customTypeCheckBox>Use a custom type of folder</customTypeCheckBox>
+        </label>
+        <title>Clone Folders/Files From Drive</title>
+        <msg>
+            <folder.cloned>Folder has been successfully cloned</folder.cloned>
+            <action.info>If you don't specify a link, all the data in the drive will be cloned.</action.info>
+        </msg>
+        <help/>
+    </UICloudLinkForm>
+</bundle>

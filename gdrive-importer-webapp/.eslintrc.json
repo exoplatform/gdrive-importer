@@ -1,0 +1,12 @@
+{
+    "extends": [
+        "eslint-config-meedsio"
+    ],
+    "globals": {
+        "gapi": true,
+        "webConferencing": true,
+        "cloudDrives": true,
+        "cloudDriveUtils": true,
+        "ClonedDrive": true
+    }
+}
