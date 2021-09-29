@@ -26,7 +26,7 @@ Configuration
 
 Open the configuration file of your Platform server `/opt/platform-tomcat/gatein/conf/exo.properties`.
 
-Add the two following variables:
+Add the following properties:
 
     copygdrive.service.schema=http
     copygdrive.service.host=myplatform.com
