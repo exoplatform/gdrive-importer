@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-text-field
-      label="Folder or file link in Google Drive"
+      :label="$t('UICloudLinkForm.label.titleTextBox')"
       v-model="folderOrFileId" />
     <span class="text-caption">
       <v-icon class="blue--text pt-2 pb-5">mdi-information</v-icon>
