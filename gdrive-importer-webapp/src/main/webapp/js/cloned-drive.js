@@ -429,7 +429,22 @@
                         //driveMessage(state.drive);
                     }, 3000);
                 } else {
-                    process.fail(state.error);
+                    var options = {
+                        text : state.error,
+                        title : " Clone process already in progress!",
+                        type : "error",
+                        hide : true,
+                        closer : true,
+                        sticker : false,
+                        icon : "picon picon-process-stop",
+                        opacity : 1,
+                        shadow : true,
+                        width : NOTICE_WIDTH,
+                        // remove non-block
+                        nonblock : false
+                    };
+                    notice.pnotify(options);
+                    refresh();
                 }
             });
 
