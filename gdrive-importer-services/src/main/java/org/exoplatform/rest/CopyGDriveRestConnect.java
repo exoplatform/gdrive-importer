@@ -390,6 +390,7 @@ public class CopyGDriveRestConnect implements ResourceContainer {
                 } catch (Exception e) {
                     LOG.error("error", e);
                     active.remove(processId);
+                    resp.error("error!");
                 }
             } else {
                 LOG.warn("Clone already posted and currently in progress.");
@@ -398,8 +399,10 @@ public class CopyGDriveRestConnect implements ResourceContainer {
 
         } catch (RepositoryException | CloudDriveException e) {
             LOG.error("error", e);
+            resp.error("error!");
         } catch (Exception e) {
             LOG.error("error", e);
+            resp.error("error!");
         } finally {
             if (userSession != null) {
                 userSession.logout();

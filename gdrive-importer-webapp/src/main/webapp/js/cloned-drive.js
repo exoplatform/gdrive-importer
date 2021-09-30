@@ -413,20 +413,24 @@
                 update();
             });
 
-            process.done(function(state) {
-                driveName = state.drive.name;
-                if (hideTimeout) {
-                    clearTimeout(hideTimeout);
-                }
+            process.done(function (state) {
+                if (state.drive && !state.error) {
+                    driveName = state.drive.name;
+                    if (hideTimeout) {
+                        clearTimeout(hideTimeout);
+                    }
 
-                // wait a bit for JCR/WCM readines
-                setTimeout(function() {
-                    // update progress
-                    progress = 100;
-                    update();
-                    refresh();
-                    //driveMessage(state.drive);
-                }, 3000);
+                    // wait a bit for JCR/WCM readines
+                    setTimeout(function () {
+                        // update progress
+                        progress = 100;
+                        update();
+                        refresh();
+                        //driveMessage(state.drive);
+                    }, 3000);
+                } else {
+                    process.fail(state.error);
+                }
             });
 
             process.fail(function(message, title) {
