@@ -267,9 +267,7 @@ public class GDriveCloneService {
                     content.setProperty(NodetypeConstant.JCR_DATA, newInputStream);
                     slideShow.close();
                 }
-                if(!current.isNew()) {
                     current.save();
-                }
             }
         }
     }
@@ -354,9 +352,7 @@ public class GDriveCloneService {
             }
             setClonedFileNumber(clonedFileNumber);
         }
-        if (!localNode.isNew()) {
-            localNode.save();
-        }
+        localNode.getSession().save();
     }
 
     private void addClonedFile(Node fileNode, String groupId, String fileId, String fileGDriveLink, Date lastModifiedInGDrive) throws Exception {
