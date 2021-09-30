@@ -28,7 +28,7 @@ Open the configuration file of your Platform server `/opt/platform-tomcat/gatein
 
 Add the following properties:
 
-    copygdrive.service.schema=http
+    copygdrive.service.schema=https
     copygdrive.service.host=myplatform.com
     copygdrive.google.client.id=00000000000@developer.gserviceaccount.com
     copygdrive.google.client.secret=secret_key
