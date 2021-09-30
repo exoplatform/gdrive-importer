@@ -485,20 +485,22 @@ public class GDriveCloneService {
     }
 
     private boolean isParent(String fileId, String folderId) throws CloudDriveException, IOException {
-        if(this.isFileInFolder(folderId, fileId))
+        boolean found = false;
+        if (this.isFileInFolder(folderId, fileId))
             return true;
         GoogleDriveAPI.ChildIterator children = this.api.children(folderId);
-            while (children.hasNext()){
-                ChildReference child = children.next();
-                if(this.api.isFolder(this.api.file(child.getId()))){
-                    if(this.isFileInFolder(child.getId(), fileId)) {
-                        return true;
-                    } else {
-                        isParent(fileId, child.getId());
-                    }
+        while (children.hasNext()) {
+            ChildReference child = children.next();
+            if (this.api.isFolder(this.api.file(child.getId()))) {
+                if (this.isFileInFolder(child.getId(), fileId)) {
+                    found = true;
+                    break;
+                } else {
+                    found = isParent(fileId, child.getId());
                 }
             }
-        return false;
+        }
+        return found;
     }
 
     private void addMetadata(Node node, String title, String creator, String lastModifier, Calendar created) throws RepositoryException {
