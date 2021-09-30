@@ -311,7 +311,11 @@ public class GDriveCloneService {
                         Node folderNode = openNode(gf.getTitle(), localNode, "nt:folder", gf.getMimeType(), modified);
                         folderNode = makeFolderNode(folderNode, gf.getTitle(), gf.getMimeType(), gf.getOwnerNames().get(0),
                                 gf.getLastModifyingUserName(), created, modified);
-                        fetchChildren(gf.getId(), folderNode, folderOrFileId, groupId);
+                        if (child.getId().equals(folderOrFileId)) {
+                            fetchChildren(gf.getId(), folderNode, null, groupId);
+                        } else {
+                            fetchChildren(gf.getId(), folderNode, folderOrFileId, groupId);
+                        }
                         LOG.info("File with name {} was successfully cloned!", gf.getTitle());
                         clonedFileNumber++;
                     } else if (StringUtils.isBlank(folderOrFileId)) {
