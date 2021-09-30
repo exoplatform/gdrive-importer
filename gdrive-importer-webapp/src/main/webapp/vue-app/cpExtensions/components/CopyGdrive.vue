@@ -27,7 +27,7 @@ export default {
       if (this.folderOrFileId.indexOf('/d/') !== -1) {
         targetId = this.folderOrFileId.split('/d/')[1].split('/')[0];
       } else if (this.folderOrFileId.indexOf('/drive/folders/') !== -1) {
-        targetId = this.folderOrFileId.split('/drive/folders/')[1].split('/')[0];
+        targetId = this.folderOrFileId.split('/drive/folders/')[1].split('?')[0];
       }
       ClonedDrive.auth(targetId, groupId);
     },
