@@ -127,7 +127,12 @@ public class GDriveCloneService {
             LOG.error("error while creating cloned drive", e);
         }
         fetchFiles(user, driveNode, folderOrFileId, groupId);
+        Long startTime = System.currentTimeMillis();
+        LOG.info("Start process Links of cloned files");
         processLinks(driveNode);
+        long endTime = System.currentTimeMillis();
+        Long period = ((endTime - startTime) / 1000) / 60;
+        LOG.info("End process Links of cloned files in {} minutes", period);
         return manageDriveService.getDriveByName(user.createDriveTitle());
     }
 
@@ -277,6 +282,7 @@ public class GDriveCloneService {
     private void fetchFiles(GoogleUser user, Node driveNode, String folderOrFileId, String groupId) throws Exception {
         About about = api.about();
         String id = about.getRootFolderId();
+        Long startTime = System.currentTimeMillis();
         LOG.info("Start GDrive cloning files ...");
         setClonedFileNumber(0);
         if (StringUtils.isNotBlank(folderOrFileId)) {
@@ -284,7 +290,9 @@ public class GDriveCloneService {
         } else {
             fetchChildren(id, driveNode, groupId);
         }
-        LOG.info("End cloning GDrive files : {} files were successfully cloned", getClonedFileNumber());
+        long endTime = System.currentTimeMillis();
+        Long period = ((endTime - startTime) / 1000) / 60;
+        LOG.info("End cloning GDrive files : {} files were successfully cloned in {} minutes", getClonedFileNumber(), period);
     }
 
     private void fetchParents(String id, Node localNode, String groupId) throws Exception {
