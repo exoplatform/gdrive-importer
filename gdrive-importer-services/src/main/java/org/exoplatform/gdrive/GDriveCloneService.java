@@ -302,6 +302,7 @@ public class GDriveCloneService {
         }
         if (api.isFolder(gf) && localNode != null) {
             createdNode = createFolder(gf, localNode, groupId);
+            saveChanges(localNode);
             fetchChildren(gf.getId(), createdNode, groupId);
         } else {
             createFile(gf, localNode, groupId);
@@ -310,8 +311,8 @@ public class GDriveCloneService {
     }
 
     private void saveChanges(Node node) throws RepositoryException {
-        node.getSession().save();
         node.getSession().refresh(true);
+        node.getSession().save();
     }
 
     private List<File> getParentsHierarchy(String id, List files) throws IOException, GoogleDriveException, NotFoundException {
@@ -603,7 +604,7 @@ public class GDriveCloneService {
                                           Calendar created, Calendar modified, String extension) throws RepositoryException {
 
         String name = title;
-        if (node.isNodeType(NodetypeConstant.NT_FILE) && extension != null) {
+        if (node.isNodeType(NodetypeConstant.NT_FILE)) {
             name = getGFileTitleWithExtension(title, mimeType, extension);
         }
         node.setProperty("exo:title", name);

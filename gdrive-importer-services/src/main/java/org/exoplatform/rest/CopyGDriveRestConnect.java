@@ -388,7 +388,7 @@ public class CopyGDriveRestConnect implements ResourceContainer {
                     }
                     active.remove(processId);
                 } catch (Exception e) {
-                    LOG.error("error", e);
+                    LOG.error("Cloning process terminated accidentally, you may not find all you cloned files", e);
                     active.remove(processId);
                     resp.error("error!");
                 }
