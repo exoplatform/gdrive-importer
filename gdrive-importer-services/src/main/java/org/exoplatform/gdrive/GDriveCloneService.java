@@ -131,7 +131,7 @@ public class GDriveCloneService {
         LOG.info("Start process Links of cloned files");
         processLinks(driveNode);
         long endTime = System.currentTimeMillis();
-        Long period = ((endTime - startTime) / 1000) / 60;
+        long period = ((endTime - startTime) / 1000) / 60;
         LOG.info("End process Links of cloned files in {} minutes", period);
         return manageDriveService.getDriveByName(user.createDriveTitle());
     }
@@ -291,7 +291,7 @@ public class GDriveCloneService {
             fetchChildren(id, driveNode, groupId);
         }
         long endTime = System.currentTimeMillis();
-        Long period = ((endTime - startTime) / 1000) / 60;
+        long period = ((endTime - startTime) / 1000) / 60;
         LOG.info("End cloning GDrive files : {} files were successfully cloned in {} minutes", getClonedFileNumber(), period);
     }
 
