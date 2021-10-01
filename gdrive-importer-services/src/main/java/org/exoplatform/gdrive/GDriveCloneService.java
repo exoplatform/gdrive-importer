@@ -269,6 +269,7 @@ public class GDriveCloneService {
                 }
                     current.save();
             }
+            processLinks(current);
         }
     }
 
