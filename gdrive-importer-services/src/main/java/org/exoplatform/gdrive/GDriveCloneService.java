@@ -298,14 +298,20 @@ public class GDriveCloneService {
         for (File file : files) {
             createdNode = createFolder(file, localNode, groupId);
             localNode = createdNode;
+            saveChanges(localNode);
         }
         if (api.isFolder(gf) && localNode != null) {
             createdNode = createFolder(gf, localNode, groupId);
             fetchChildren(gf.getId(), createdNode, groupId);
         } else {
             createFile(gf, localNode, groupId);
+            saveChanges(localNode);
         }
-        localNode.getSession().save();
+    }
+
+    private void saveChanges(Node node) throws RepositoryException {
+        node.getSession().save();
+        node.getSession().refresh(true);
     }
 
     private List<File> getParentsHierarchy(String id, List files) throws IOException, GoogleDriveException, NotFoundException {
@@ -332,7 +338,7 @@ public class GDriveCloneService {
             throw new GoogleDriveException("File " + file.getTitle() + " doesn't have Modified Date.");
         }
         Calendar modified = api.parseDate(modifiedDate.toStringRfc3339());
-        Node folderNode = openNode(file.getTitle(), driveNode, "nt:folder", file.getMimeType(), modified);
+        Node folderNode = openNode(file.getTitle(), driveNode, "nt:folder", file.getMimeType(), modified, file.getFileExtension());
         folderNode = makeFolderNode(folderNode, file.getTitle(), file.getMimeType(), file.getOwnerNames().get(0),
                 file.getLastModifyingUserName(), created, modified);
 
@@ -357,9 +363,9 @@ public class GDriveCloneService {
         Node fileNode = null;
         if (sizeToMegaBytes(size) <= 190) {
             InputStream inputStream = getGFileInputStream(file.getId(), file.getMimeType(), size, link);
-            fileNode = openNode(file.getTitle(), driveNode, "nt:file", file.getMimeType(), modified);
+            fileNode = openNode(file.getTitle(), driveNode, "nt:file", file.getMimeType(), modified, file.getFileExtension());
             fileNode = makeFileNode(fileNode, file.getTitle(), file.getMimeType(), file.getOwnerNames().get(0),
-                    file.getLastModifyingUserName(), created, modified, inputStream);
+                    file.getLastModifyingUserName(), created, modified, inputStream, file.getFileExtension());
             addClonedFile(fileNode, groupId, file.getId(), file.getAlternateLink(), modified.getTime());
             LOG.info("File with name {} was successfully cloned!", file.getTitle());
             clonedFileNumber++;
@@ -382,8 +388,8 @@ public class GDriveCloneService {
                 }
             }
             setClonedFileNumber(clonedFileNumber);
+            saveChanges(localNode);
         }
-        localNode.getSession().save();
     }
 
     private void addClonedFile(Node fileNode, String groupId, String fileId, String fileGDriveLink, Date lastModifiedInGDrive) throws Exception {
@@ -472,9 +478,9 @@ public class GDriveCloneService {
     }
 
     private String getMimeTypeToExport(String mimeType) {
-        if(mimeType.equals(G_DOCS_MIME_TYPE)) {
-            return  DOCX_MIMETYPE;
-        } else if(mimeType.equals(G_SHEETS_MIME_TYPE)) {
+        if (mimeType.equals(G_DOCS_MIME_TYPE)) {
+            return DOCX_MIMETYPE;
+        } else if (mimeType.equals(G_SHEETS_MIME_TYPE)) {
             return XLSX_MIMETYPE;
         } else if (mimeType.equals(G_PRESENTATIONS_MIME_TYPE)) {
             return PPTX_MIMETYPE;
@@ -482,13 +488,19 @@ public class GDriveCloneService {
         return mimeType;
     }
 
-    private String getGFileTitleWithExtension(String title, String mimeType) {
-        if(mimeType.equals(G_DOCS_MIME_TYPE)) {
-            return  title.concat(".docx");
-        } else if(mimeType.equals(G_SHEETS_MIME_TYPE)) {
-            return  title.concat(".xlsx");
+    private String getGFileTitleWithExtension(String title, String mimeType, String extension) {
+        if (mimeType.equals(G_DOCS_MIME_TYPE)) {
+            return title.concat(".docx");
+        } else if (mimeType.equals(G_SHEETS_MIME_TYPE)) {
+            return title.concat(".xlsx");
         } else if (mimeType.equals(G_PRESENTATIONS_MIME_TYPE)) {
-            return  title.concat(".pptx");
+            return title.concat(".pptx");
+        }
+
+        if (title.endsWith(" ") && extension != null) {
+            title = title.concat("." + extension);
+        } else {
+            title = title.replaceAll("\\s+$", "");
         }
         return title;
     }
@@ -550,10 +562,10 @@ public class GDriveCloneService {
         }
     }
     private Node makeFileNode(Node node, String title, String mimeType, String owner, String lastModifier,
-                              Calendar created, Calendar modified, InputStream fileContent) throws RepositoryException {
+                              Calendar created, Calendar modified, InputStream fileContent, String extension) throws RepositoryException {
         if (node.isNew() && !node.hasNode("jcr:content")) {
             node.addMixin("mix:versionable");
-            initNodeCommonProperties(node, title, mimeType, owner, lastModifier, created, modified);
+            initNodeCommonProperties(node, title, mimeType, owner, lastModifier, created, modified, extension);
             Node content = node.addNode("jcr:content", "nt:resource");
             if (fileContent != null) {
                 content.setProperty("jcr:data", fileContent);
@@ -583,14 +595,17 @@ public class GDriveCloneService {
         if (node.canAddMixin("exo:privilegeable")) {
             node.addMixin("exo:privilegeable");
         }
-        initNodeCommonProperties(node, title, mimeType, owner, lastModifier, created, modified);
+        initNodeCommonProperties(node, title, mimeType, owner, lastModifier, created, modified, null);
         return node;
     }
 
     private void initNodeCommonProperties(Node node, String title, String mimeType, String owner, String lastModifier,
-                                          Calendar created, Calendar modified) throws RepositoryException {
+                                          Calendar created, Calendar modified, String extension) throws RepositoryException {
 
-        String name = getGFileTitleWithExtension(title, mimeType);
+        String name = title;
+        if (node.isNodeType(NodetypeConstant.NT_FILE) && extension != null) {
+            name = getGFileTitleWithExtension(title, mimeType, extension);
+        }
         node.setProperty("exo:title", name);
         if (node.hasProperty("exo:name")) {
             node.setProperty("exo:name", Utils.cleanName(name));
@@ -612,9 +627,9 @@ public class GDriveCloneService {
     }
 
 
-    private Node openNode(String fileTitle, Node parent, String nodeType, String mimetype, Calendar lastModified) throws Exception {
+    private Node openNode(String fileTitle, Node parent, String nodeType, String mimetype, Calendar lastModified, String extension)  {
         NodeFinder nodeFinder = CommonsUtils.getService(NodeFinder.class);
-        Node node;
+        Node node = null;
         String baseName = Utils.cleanName(fileTitle);
         String name = baseName;
         String internalName = null;
@@ -639,18 +654,22 @@ public class GDriveCloneService {
                 } catch (Throwable te) {
                 }
             }
-            String cname = getGFileTitleWithExtension(internalName,mimetype);
-            if (!parent.hasNode(cname)) {
-                node = parent.addNode(cname, nodeType);
-            } else {
-                node = parent.getNode(cname);
-                if (node.isNodeType(NodetypeConstant.NT_FILE)) {
-                    Date d1 = node.getProperty("exo:lastModifiedDate").getValue().getDate().getTime();
-                    Date d2 = lastModified.getTime();
-                    if (d1.compareTo(d2) < 0) {
-                        VersionHistoryUtils.createVersion(node);
+            String cname = getGFileTitleWithExtension(internalName,mimetype, extension);
+            try {
+                if (!parent.hasNode(cname)) {
+                    node = parent.addNode(cname, nodeType);
+                } else {
+                    node = parent.getNode(cname);
+                    if (node.isNodeType(NodetypeConstant.NT_FILE)) {
+                        Date d1 = node.getProperty("exo:lastModifiedDate").getValue().getDate().getTime();
+                        Date d2 = lastModified.getTime();
+                        if (d1.compareTo(d2) < 0) {
+                            VersionHistoryUtils.createVersion(node);
+                        }
                     }
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
             break;
         } while (true);
