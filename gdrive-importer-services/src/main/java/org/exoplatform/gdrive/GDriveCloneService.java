@@ -4,9 +4,7 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.util.DateTime;
-import com.google.api.services.drive.model.About;
-import com.google.api.services.drive.model.ChildReference;
-import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
@@ -46,10 +44,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class GDriveCloneService {
 
@@ -284,74 +279,106 @@ public class GDriveCloneService {
         String id = about.getRootFolderId();
         LOG.info("Start GDrive cloning files ...");
         setClonedFileNumber(0);
-        fetchChildren(id, driveNode, folderOrFileId, groupId);
+        if (StringUtils.isNotBlank(folderOrFileId)) {
+            fetchParents(folderOrFileId, driveNode, groupId);
+        } else {
+            fetchChildren(id, driveNode, groupId);
+        }
         LOG.info("End cloning GDrive files : {} files were successfully cloned", getClonedFileNumber());
     }
 
-    private void fetchChildren(String id, Node localNode, String folderOrFileId, String groupId) throws Exception {
+    private void fetchParents(String id, Node localNode, String groupId) throws Exception {
+        List<File> parents = new ArrayList<>();
+        File gf = this.api.file(id);
+        List<File> files = getParentsHierarchy(id, parents);
+        Node createdNode;
+        if (files.size() != 0) {
+            Collections.reverse(files);
+        }
+        for (File file : files) {
+            createdNode = createFolder(file, localNode, groupId);
+            localNode = createdNode;
+        }
+        if (api.isFolder(gf) && localNode != null) {
+            createdNode = createFolder(gf, localNode, groupId);
+            fetchChildren(gf.getId(), createdNode, groupId);
+        } else {
+            createFile(gf, localNode, groupId);
+        }
+        localNode.getSession().save();
+    }
+
+    private List<File> getParentsHierarchy(String id, List files) throws IOException, GoogleDriveException, NotFoundException {
+        Iterator iterator = ParentsIterator(id);
+        while (iterator.hasNext()) {
+            ParentReference parent = (ParentReference) iterator.next();
+            File file = this.api.file(parent.getId());
+            if (!parent.getIsRoot()) {
+                files.add(file);
+                getParentsHierarchy(file.getId(), files);
+            }
+        }
+        return files;
+    }
+
+    private Node createFolder(File file, Node driveNode, String groupId) throws Exception {
+        DateTime createDate = file.getCreatedDate();
+        if (createDate == null) {
+            throw new GoogleDriveException("File " + file.getTitle() + " doesn't have Created Date.");
+        }
+        Calendar created = api.parseDate(createDate.toStringRfc3339());
+        DateTime modifiedDate = file.getModifiedDate();
+        if (modifiedDate == null) {
+            throw new GoogleDriveException("File " + file.getTitle() + " doesn't have Modified Date.");
+        }
+        Calendar modified = api.parseDate(modifiedDate.toStringRfc3339());
+        Node folderNode = openNode(file.getTitle(), driveNode, "nt:folder", file.getMimeType(), modified);
+        folderNode = makeFolderNode(folderNode, file.getTitle(), file.getMimeType(), file.getOwnerNames().get(0),
+                file.getLastModifyingUserName(), created, modified);
+
+        LOG.info("File with name {} was successfully cloned!", file.getTitle());
+        clonedFileNumber++;
+        return folderNode;
+    }
+
+    private Node createFile(File file, Node driveNode, String groupId) throws Exception {
+        DateTime createDate = file.getCreatedDate();
+        if (createDate == null) {
+            throw new GoogleDriveException("File " + file.getTitle() + " doesn't have Created Date.");
+        }
+        Calendar created = api.parseDate(createDate.toStringRfc3339());
+        DateTime modifiedDate = file.getModifiedDate();
+        if (modifiedDate == null) {
+            throw new GoogleDriveException("File " + file.getTitle() + " doesn't have Modified Date.");
+        }
+        Calendar modified = api.parseDate(modifiedDate.toStringRfc3339());
+        Long size = fileSize(file);
+        String link = file.getAlternateLink();
+        Node fileNode = null;
+        if (sizeToMegaBytes(size) <= 190) {
+            InputStream inputStream = getGFileInputStream(file.getId(), file.getMimeType(), size, link);
+            fileNode = openNode(file.getTitle(), driveNode, "nt:file", file.getMimeType(), modified);
+            fileNode = makeFileNode(fileNode, file.getTitle(), file.getMimeType(), file.getOwnerNames().get(0),
+                    file.getLastModifyingUserName(), created, modified, inputStream);
+            addClonedFile(fileNode, groupId, file.getId(), file.getAlternateLink(), modified.getTime());
+            LOG.info("File with name {} was successfully cloned!", file.getTitle());
+            clonedFileNumber++;
+        }
+        return fileNode;
+    }
+
+    private void fetchChildren(String id, Node localNode, String groupId) throws Exception {
         GoogleDriveAPI.ChildIterator children = api.children(id);
         while (children.hasNext() && !Thread.currentThread().isInterrupted()) {
             ChildReference child = children.next();
             File gf = api.file(child.getId());
             if (!gf.getLabels().getTrashed()) {
                 boolean isFolder = api.isFolder(gf);
-
-                DateTime createDate = gf.getCreatedDate();
-                if (createDate == null) {
-                    throw new GoogleDriveException("File " + gf.getTitle() + " doesn't have Created Date.");
-                }
-                Calendar created = api.parseDate(createDate.toStringRfc3339());
-                DateTime modifiedDate = gf.getModifiedDate();
-                if (modifiedDate == null) {
-                    throw new GoogleDriveException("File " + gf.getTitle() + " doesn't have Modified Date.");
-                }
-                Calendar modified = api.parseDate(modifiedDate.toStringRfc3339());
                 if (isFolder) {
-                    if (StringUtils.isNotBlank(folderOrFileId) && (child.getId().equals(folderOrFileId) || this.isParent(folderOrFileId, child.getId()))) {
-                        Node folderNode = openNode(gf.getTitle(), localNode, "nt:folder", gf.getMimeType(), modified);
-                        folderNode = makeFolderNode(folderNode, gf.getTitle(), gf.getMimeType(), gf.getOwnerNames().get(0),
-                                gf.getLastModifyingUserName(), created, modified);
-                        if (child.getId().equals(folderOrFileId)) {
-                            fetchChildren(gf.getId(), folderNode, null, groupId);
-                        } else {
-                            fetchChildren(gf.getId(), folderNode, folderOrFileId, groupId);
-                        }
-                        LOG.info("File with name {} was successfully cloned!", gf.getTitle());
-                        clonedFileNumber++;
-                    } else if (StringUtils.isBlank(folderOrFileId)) {
-                        Node folderNode = openNode(gf.getTitle(), localNode, "nt:folder", gf.getMimeType(), modified);
-                        folderNode = makeFolderNode(folderNode, gf.getTitle(), gf.getMimeType(), gf.getOwnerNames().get(0),
-                                gf.getLastModifyingUserName(), created, modified);
-                        fetchChildren(gf.getId(), folderNode, null, groupId);
-                        LOG.info("File with name {} was successfully cloned!", gf.getTitle());
-                        clonedFileNumber++;
-                    } else {
-                        LOG.info("Folder has been ignored from cloning process");
-                    }
+                    Node createdNode = createFolder(gf, localNode, groupId);
+                    fetchChildren(gf.getId(), createdNode, groupId);
                 } else {
-                    Long  size = fileSize(gf);
-                    String link = gf.getAlternateLink();
-                    if (StringUtils.isNotBlank(folderOrFileId) && sizeToMegaBytes(size) <= 190 && child.getId().equals(folderOrFileId) ||
-                                                        this.isFileInFolder(folderOrFileId, child.getId())) {
-                        InputStream inputStream = getGFileInputStream(child.getId(), gf.getMimeType(), size, link);
-                        Node fileNode = openNode(gf.getTitle(), localNode, "nt:file", gf.getMimeType(), modified);
-                        fileNode = makeFileNode(fileNode, gf.getTitle(), gf.getMimeType(), gf.getOwnerNames().get(0),
-                                gf.getLastModifyingUserName(), created, modified, inputStream);
-                        addClonedFile(fileNode, groupId, gf.getId(), gf.getAlternateLink(), modified.getTime()) ;
-                        LOG.info("File with name {} was successfully cloned!", gf.getTitle());
-                        clonedFileNumber++;
-                        break;
-                    } else if (StringUtils.isBlank(folderOrFileId) && sizeToMegaBytes(size) <= 190) {
-                        InputStream inputStream = getGFileInputStream(child.getId(), gf.getMimeType(), size, link);
-                        Node fileNode = openNode(gf.getTitle(), localNode, "nt:file", gf.getMimeType(), modified);
-                        fileNode = makeFileNode(fileNode, gf.getTitle(), gf.getMimeType(), gf.getOwnerNames().get(0),
-                                gf.getLastModifyingUserName(), created, modified, inputStream);
-                        addClonedFile(fileNode, groupId, gf.getId(), gf.getAlternateLink(), modified.getTime());
-                        LOG.info("File with name {} was successfully cloned!", gf.getTitle());
-                        clonedFileNumber++;
-                    } else {
-                        LOG.info("File has been ignored from cloning process");
-                    }
+                    createFile(gf, localNode, groupId);
                 }
             }
             setClonedFileNumber(clonedFileNumber);
@@ -503,6 +530,11 @@ public class GDriveCloneService {
         return found;
     }
 
+    private Iterator<ParentReference> ParentsIterator (String fileId) throws IOException {
+        ParentList parents =  this.api.drive.parents().list(fileId).execute();
+        Iterator<ParentReference> iterator = parents.getItems().iterator();
+        return iterator;
+    }
     private void addMetadata(Node node, String title, String creator, String lastModifier, Calendar created) throws RepositoryException {
         if(node.canAddMixin("dc:elementSet")) {
             node.addMixin("dc:elementSet");
