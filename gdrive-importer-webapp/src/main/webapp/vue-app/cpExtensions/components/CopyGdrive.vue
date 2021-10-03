@@ -29,8 +29,10 @@ export default {
       } else if (this.folderOrFileId.indexOf('/drive/folders/') !== -1) {
         targetId = this.folderOrFileId.split('/drive/folders/')[1].split('?')[0];
       }
-      ClonedDrive.auth(targetId, groupId);
+      const process = ClonedDrive.auth(targetId, groupId);
+      ClonedDrive.cloneProcess(process);
     },
+
   }
 };
 </script>

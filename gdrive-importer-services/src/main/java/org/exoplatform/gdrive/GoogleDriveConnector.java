@@ -195,37 +195,14 @@ public class GoogleDriveConnector extends CloudDriveConnector {
     }
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  protected JCRLocalGoogleDrive createDrive(CloudUser user, Node driveNode) throws CloudDriveException, RepositoryException {
-    if (user instanceof GoogleUser) {
-      return new JCRLocalGoogleDrive((GoogleUser) user, driveNode, sessionProviders, jcrFinder, mimeTypes);
-    } else {
-      throw new CloudDriveException("Not Google user: " + user);
-    }
+  protected CloudDrive createDrive(CloudUser user, Node driveNode) throws CloudDriveException, RepositoryException {
+    return null;
   }
 
-  protected DriveData cloneDrive(CloudUser user, Node driveNode) throws Exception {
-    DriveData driveData;
-    if (user instanceof GoogleUser) {
-      GDriveCloneService googleDriveCloneable = CommonsUtils.getService(GDriveCloneService.class);
-      driveData = googleDriveCloneable.cloneCloudDrive ((GoogleUser) user, driveNode, null, null);
-    } else {
-      throw new CloudDriveException("Not Google user: " + user);
-    }
-    return driveData;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
   @Override
   protected CloudDrive loadDrive(Node driveNode) throws CloudDriveException, RepositoryException {
-    JCRLocalCloudDrive.checkNotTrashed(driveNode);
-    JCRLocalCloudDrive.migrateName(driveNode);
-    return new JCRLocalGoogleDrive(new API(), getProvider(), driveNode, sessionProviders, jcrFinder, mimeTypes);
+    return null;
   }
 
 @Override

@@ -1,13 +1,12 @@
 package org.exoplatform.rest;
 
 import io.swagger.annotations.Api;
+import org.exoplatform.container.ExoContainer;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.ecm.connector.clouddrives.DriveServiceLocator;
 import org.exoplatform.gdrive.GDriveCloneService;
 import org.exoplatform.gdrive.GoogleUser;
-import org.exoplatform.rest.utils.CloneCommand;
-import org.exoplatform.rest.utils.CloneProcess;
-import org.exoplatform.rest.utils.CloneResponse;
-import org.exoplatform.rest.utils.ConnectInit;
+import org.exoplatform.rest.utils.*;
 import org.exoplatform.services.cms.clouddrives.*;
 import org.exoplatform.services.cms.clouddrives.jcr.JCRLocalCloudDrive;
 import org.exoplatform.services.cms.clouddrives.jcr.NodeFinder;
@@ -346,8 +345,10 @@ public class CopyGDriveRestConnect implements ResourceContainer {
             String processId = processId(workspace, targetNode.getPath(), name);
             resp.cookie(CONNECT_COOKIE, cid.toString(), "/", host, "Cloud Drive connect ID", 0, false);
             CloneProcess cloneProcess = active.get(processId);
-
-            if (cloneProcess == null || cloneProcess.getError() != null) {
+            if (cloneProcess != null && cloneProcess.getProcess().getCommandState() == 0) {
+                active.remove(processId);
+            }
+            if (cloneProcess == null || cloneProcess != null && cloneProcess.getProcess().getCommandState() == 0) {
                 if (driveNode == null) {
                     try {
                         driveNode = targetNode.addNode(name);
@@ -373,20 +374,25 @@ public class CopyGDriveRestConnect implements ResourceContainer {
 
                 try {
                     CloneCommand command = new CloneCommand();
-                    cloneProcess = new CloneProcess(null, command, workspace);
+                    cloneProcess = new CloneProcess(user, driveNode, folderOrFileId, groupId, command);
+                    ClonedDrive clonedDrive = new ClonedDrive();
                     active.put(processId, cloneProcess);
-                    DriveData driveData = gDriveCloneService.cloneCloudDrive(user, driveNode, folderOrFileId, groupId);
+                    DriveData driveData = cloneProcess.getDrive();
+                    clonedDrive.setName(name);
                     if(driveData != null) {
                         resp.status(Response.Status.CREATED);
-                        resp.drive(driveData);
+                        clonedDrive.setCloned(true);
+                        clonedDrive.setDriveData(driveData);
+                        resp.drive(clonedDrive);
+                        active.remove(processId);
+
                     } else {
-                        /*cloneProcess = new CloneProcess(null, null, workspace);
-                        resp.status(Response.Status.ACCEPTED);*cloneProcess.setProgress(20);
+                        clonedDrive.setWorkspace(workspace);
+                        clonedDrive.setCloned(false);
+                        resp.status(Response.Status.ACCEPTED);
                         resp.progress(cloneProcess.getProgress());
-                        DriveInfo drive = DriveInfo.create(workspace, local, connect.process.getFiles(), connect.process.getMessages());
-                        resp.drive(null);*/
+                        resp.drive(clonedDrive);
                     }
-                    active.remove(processId);
                 } catch (Exception e) {
                     LOG.error("Cloning process terminated accidentally, you may not find all you cloned files", e);
                     active.remove(processId);
@@ -395,6 +401,8 @@ public class CopyGDriveRestConnect implements ResourceContainer {
             } else {
                 LOG.warn("Clone already posted and currently in progress.");
                 resp.error("Clone already posted and currently in progress!");
+                resp.status(Response.Status.CONFLICT);
+                LOG.info(cloneProcess.getProcess().getAvailable());
             }
 
         } catch (RepositoryException | CloudDriveException e) {
@@ -412,6 +420,53 @@ public class CopyGDriveRestConnect implements ResourceContainer {
         return resp.build();
     }
 
+    @GET
+    @RolesAllowed("users")
+    public Response checkCloneState(@Context UriInfo uriInfo,
+                                 @QueryParam("workspace") String workspace,
+                                 @QueryParam("path") String path) {
+        CloneResponse response = new CloneResponse();
+        response.serviceUrl(uriInfo.getRequestUri().toASCIIString());
+        String processId = processId(workspace, path);
+        try {
+            CloneProcess cloneProcess = active.get(processId);
+            if(cloneProcess != null) {
+                response.progress(cloneProcess.getProgress());
+                try {
+                cloneProcess.getLock().lock();
+                if(cloneProcess.getError() != null) {
+                    response.error(cloneProcess.getError()).status(Response.Status.INTERNAL_SERVER_ERROR);
+                } else {
+                    ClonedDrive clonedDrive = new ClonedDrive();
+                    if(cloneProcess.getProcess().isDone()){
+                        clonedDrive.setCloned(true);
+                        clonedDrive.setDriveData(cloneProcess.getDrive());
+                        clonedDrive.setName(cloneProcess.getDrive().getName());
+                        clonedDrive.setWorkspace(cloneProcess.getDrive().getWorkspace());
+                        response.drive(clonedDrive);
+                        response.status(Response.Status.CREATED);
+                    } else {
+                        clonedDrive.setCloned(false);
+                        clonedDrive.setName(cloneProcess.getProcess().getName());
+                        clonedDrive.setWorkspace(workspace);
+                        response.drive(clonedDrive);
+                        response.status(Response.Status.ACCEPTED);
+                    }
+                }
+                }catch (RepositoryException e) {
+                    LOG.error("error occurred", e);
+                    response.error("error occurred");
+                } finally {
+                  cloneProcess.getLock().unlock();
+                }
+            }
+        } catch (Exception e) {
+            LOG.error("error occurred", e);
+            response.error("error occurred");
+        }
+        return response.build();
+    }
+
     private UUID generateId(String name) {
         StringBuilder s = new StringBuilder();
         s.append(name);
@@ -422,6 +477,10 @@ public class CopyGDriveRestConnect implements ResourceContainer {
 
     private String processId(String workspace, String parentPath, String driveName) {
         return workspace + ":" + parentPath + "/" + driveName;
+    }
+
+    private String processId(String workspace, String nodePath) {
+        return workspace + ":" + nodePath;
     }
 
     private boolean rollback(Node targetNode, Node driveNode) {

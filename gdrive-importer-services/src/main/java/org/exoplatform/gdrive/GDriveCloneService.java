@@ -5,6 +5,7 @@ import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.drive.model.*;
+import com.google.common.collect.Iterators;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
@@ -25,11 +26,14 @@ import org.exoplatform.services.cms.clouddrives.CloudDriveException;
 import org.exoplatform.services.cms.clouddrives.CloudUser;
 import org.exoplatform.services.cms.clouddrives.NotFoundException;
 import org.exoplatform.services.cms.clouddrives.jcr.NodeFinder;
+import org.exoplatform.services.cms.clouddrives.utils.ChunkIterator;
 import org.exoplatform.services.cms.documents.DocumentService;
 import org.exoplatform.services.cms.documents.VersionHistoryUtils;
 import org.exoplatform.services.cms.drives.DriveData;
 import org.exoplatform.services.cms.drives.ManageDriveService;
 import org.exoplatform.services.cms.impl.Utils;
+import org.exoplatform.services.jcr.RepositoryService;
+import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.wcm.core.NodetypeConstant;
@@ -39,6 +43,9 @@ import org.openxmlformats.schemas.wordprocessingml.x2006.main.*;
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
 import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.query.Query;
+import javax.jcr.query.QueryManager;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -103,173 +110,198 @@ public class GDriveCloneService {
 
     private ManageDriveService manageDriveService;
     private ClonedGFileStorage clonedGFileStorage;
+    private RepositoryService repositoryService;
     private GoogleDriveAPI api;
     private DocumentService documentService;
 
+    private final List<ChunkIterator<?>> childIterators = new ArrayList<>();
+    private final List<Iterator<ParentReference>> parentIterators = new ArrayList<>();
     private int clonedFileNumber;
 
     public GDriveCloneService(ManageDriveService manageDriveService, ClonedGFileStorage clonedGFileStorage,
-                              DocumentService documentService) {
+                              DocumentService documentService, RepositoryService repositoryService) {
         this.manageDriveService = manageDriveService;
         this.clonedGFileStorage = clonedGFileStorage;
         this.documentService = documentService;
+        this.repositoryService = repositoryService;
     }
 
-    public DriveData cloneCloudDrive(GoogleUser user, Node driveNode, String folderOrFileId, String groupId) throws Exception {
-        this.api = user.api();
-        String workspace = driveNode.getSession().getWorkspace().getName();
-        initDrive(user, driveNode);
+    public DriveData cloneCloudDrive(GoogleUser user, String workspace, String driveNodeUUID, String folderOrFileId, String groupId) {
+        SessionProvider sessionProvider = SessionProvider.createSystemProvider();
         try {
-            manageDriveService.addDrive(user.createDriveTitle(), workspace, "", driveNode.getPath(),
-                    DRIVE_VIEWS, DRIVE_ICON, DRIVE_VIEW_REFERENCES, DRIVE_VIEW_NON_DOCUMENT, DRIVE_VIEW_SIDE_BAR, DRIVE_SHOW_HIDDEN_NODE,
-                    DRIVE_ALLOW_CREATE_FOLDER, DRIVE_ALLOW_NODE_TYPES_ON_TREE);
+            Session session = sessionProvider.getSession(workspace, repositoryService.getCurrentRepository());
+            Node driveNode = session.getNodeByUUID(driveNodeUUID);
+            this.api = user.api();
+            //String workspace = driveNode.getSession().getWorkspace().getName();
+            initDrive(user, driveNode);
+            try {
+                manageDriveService.addDrive(user.createDriveTitle(), workspace, "", driveNode.getPath(),
+                        DRIVE_VIEWS, DRIVE_ICON, DRIVE_VIEW_REFERENCES, DRIVE_VIEW_NON_DOCUMENT, DRIVE_VIEW_SIDE_BAR, DRIVE_SHOW_HIDDEN_NODE,
+                        DRIVE_ALLOW_CREATE_FOLDER, DRIVE_ALLOW_NODE_TYPES_ON_TREE);
+            } catch (Exception e) {
+                LOG.error("error while creating cloned drive", e);
+            }
+            fetchFiles(user, driveNode, folderOrFileId, groupId);
+            Long startTime = System.currentTimeMillis();
+            LOG.info("Start process Links of cloned files");
+            processLinks(driveNode);
+            long endTime = System.currentTimeMillis();
+            long period = ((endTime - startTime) / 1000) / 60;
+            LOG.info("End process Links of cloned files in {} minutes", period);
+            return manageDriveService.getDriveByName(user.createDriveTitle());
         } catch (Exception e) {
-            LOG.error("error while creating cloned drive", e);
+            LOG.error("Error occurred while cloning your drive", e);
+        } finally {
+            sessionProvider.close();
         }
-        fetchFiles(user, driveNode, folderOrFileId, groupId);
-        Long startTime = System.currentTimeMillis();
-        LOG.info("Start process Links of cloned files");
-        processLinks(driveNode);
-        long endTime = System.currentTimeMillis();
-        long period = ((endTime - startTime) / 1000) / 60;
-        LOG.info("End process Links of cloned files in {} minutes", period);
-        return manageDriveService.getDriveByName(user.createDriveTitle());
+        return null;
     }
 
-    private void processLinks(Node driveNode) throws RepositoryException, IOException {
-        NodeIterator iterator = driveNode.getNodes();
-        while(iterator.hasNext()) {
+    private void processLinks(Node driveNode) throws RepositoryException {
+        String queryString = new StringBuilder("SELECT * FROM nt:file WHERE jcr:path LIKE '")
+                .append(driveNode.getPath()).append("/%' ").toString();
+        QueryManager queryManager = driveNode.getSession().getWorkspace().getQueryManager();
+        Query query = queryManager.createQuery(queryString, Query.SQL);
+        NodeIterator iterator = query.execute().getNodes();
+        //NodeIterator iterator = driveNode.getNodes();
+        while (iterator.hasNext()) {
             Node current = iterator.nextNode();
-            if(current.isNodeType(NodetypeConstant.NT_FILE)) {
+            if (current.isNodeType(NodetypeConstant.NT_FILE)) {
                 Node content = current.getNode(NodetypeConstant.JCR_CONTENT);
-                InputStream inputStream = content.getProperty(NodetypeConstant.JCR_DATA).getStream();
                 String mimeType = content.getProperty(NodetypeConstant.JCR_MIME_TYPE).getValue().getString();
-                if (mimeType.equals(DOCX_MIMETYPE)) {
-                    XWPFDocument document = new XWPFDocument(inputStream);
-                    List<XWPFParagraph> paragraphs = document.getParagraphs();
-                    for (XWPFParagraph para : paragraphs) {
-                        final Object[] runs = para.getRuns().toArray();
-                        int countLink = -1;
-                        for (int i = 0; i < runs.length; i++) {
-                            if (runs[i] instanceof XWPFHyperlinkRun) {
-                                countLink++;
-                                String oldUrl = ((XWPFHyperlinkRun)runs[i]).getHyperlink(document).getURL();
-                                String fileId = getFileIdFromLink(oldUrl);
-                                String newUrl = null;
-                                if(fileId != null) {
-                                    newUrl = clonedGFileStorage.getExoLinkByGFileId(fileId);
-                                }
-                                CTHyperlink oldLink = para.getCTP().getHyperlinkArray(countLink);
-                                List<CTText> ctTextList = oldLink.getRList().get(0).getTList();
-                                String text = ctTextList.get(0).getStringValue();
-                                String linkId;
-                                if(newUrl != null) {
-                                    linkId = para
-                                            .getDocument()
-                                            .getPackagePart()
-                                            .addExternalRelationship(newUrl,
-                                                    XWPFRelation.HYPERLINK.getRelation()).getId();
-
-                                    CTHyperlink ctHyperlink = para.getCTP().getHyperlinkArray(countLink);
-                                    ctHyperlink.setId(linkId);
-                                    CTText ctText = CTText.Factory.newInstance();
-                                    ctText.setStringValue(text);
-                                    CTR ctr = CTR.Factory.newInstance();
-                                    CTRPr ctrPr = ctr.addNewRPr();
-                                    CTColor color = CTColor.Factory.newInstance();
-                                    color.setVal("0000FF");
-                                    ctrPr.setColor(color);
-                                    ctrPr.addNewU().setVal(STUnderline.SINGLE);
-                                    ctr.setTArray(new CTText[]{ctText});
-                                    ctHyperlink.setRArray(new CTR[]{ctr});
-                                }
-                            }
-                        }
-                    }
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                    document.write(outputStream);
-                    InputStream newInputStream = new ByteArrayInputStream(outputStream.toByteArray());
-                    content.setProperty(NodetypeConstant.JCR_DATA, newInputStream);
-                    document.close();
-                } else if (mimeType.equals(XLSX_MIMETYPE)) {
-                    XSSFWorkbook xssfWorkbook = new XSSFWorkbook(inputStream);
-                    CreationHelper helper = xssfWorkbook.getCreationHelper();
-                    int numSheets = xssfWorkbook.getNumberOfSheets();
-                    for (int i = 0; i < numSheets; i++) {
-                        XSSFSheet sheet = xssfWorkbook.getSheetAt(i);
-                        Iterator<Row> rowIterator = sheet.rowIterator();
-                        while (rowIterator.hasNext()) {
-                            Row currentRow = rowIterator.next();
-                            Iterator<Cell> cellIterator = currentRow.cellIterator();
-                            while (cellIterator.hasNext()) {
-                                Cell currentCell = cellIterator.next();
-                                Hyperlink oldHyperlink = currentCell.getHyperlink();
-                                if (oldHyperlink != null) {
-                                    String oldUrl = currentCell.getHyperlink().getAddress();
+                try {
+                    if (mimeType.equals(DOCX_MIMETYPE)) {
+                        InputStream inputStream = content.getProperty(NodetypeConstant.JCR_DATA).getStream();
+                        XWPFDocument document = new XWPFDocument(inputStream);
+                        List<XWPFParagraph> paragraphs = document.getParagraphs();
+                        for (XWPFParagraph para : paragraphs) {
+                            final Object[] runs = para.getRuns().toArray();
+                            int countLink = -1;
+                            for (int i = 0; i < runs.length; i++) {
+                                if (runs[i] instanceof XWPFHyperlinkRun) {
+                                    countLink++;
+                                    String oldUrl = ((XWPFHyperlinkRun) runs[i]).getHyperlink(document).getURL();
                                     String fileId = getFileIdFromLink(oldUrl);
                                     String newUrl = null;
                                     if (fileId != null) {
                                         newUrl = clonedGFileStorage.getExoLinkByGFileId(fileId);
                                     }
+                                    CTHyperlink oldLink = para.getCTP().getHyperlinkArray(countLink);
+                                    List<CTText> ctTextList = oldLink.getRList().get(0).getTList();
+                                    String text = ctTextList.get(0).getStringValue();
+                                    String linkId;
                                     if (newUrl != null) {
-                                        currentCell.removeHyperlink();
-                                        XSSFHyperlink link = (XSSFHyperlink) helper.createHyperlink(HyperlinkType.URL);
-                                        link.setAddress(newUrl);
-                                        link.setLabel(oldHyperlink.getLabel());
-                                        currentCell.setHyperlink(link);
+                                        linkId = para
+                                                .getDocument()
+                                                .getPackagePart()
+                                                .addExternalRelationship(newUrl,
+                                                        XWPFRelation.HYPERLINK.getRelation()).getId();
+
+                                        CTHyperlink ctHyperlink = para.getCTP().getHyperlinkArray(countLink);
+                                        ctHyperlink.setId(linkId);
+                                        CTText ctText = CTText.Factory.newInstance();
+                                        ctText.setStringValue(text);
+                                        CTR ctr = CTR.Factory.newInstance();
+                                        CTRPr ctrPr = ctr.addNewRPr();
+                                        CTColor color = CTColor.Factory.newInstance();
+                                        color.setVal("0000FF");
+                                        ctrPr.setColor(color);
+                                        ctrPr.addNewU().setVal(STUnderline.SINGLE);
+                                        ctr.setTArray(new CTText[]{ctText});
+                                        ctHyperlink.setRArray(new CTR[]{ctr});
                                     }
                                 }
                             }
                         }
-                    }
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                    xssfWorkbook.write(outputStream);
-                    InputStream newInputStream = new ByteArrayInputStream(outputStream.toByteArray());
-                    content.setProperty(NodetypeConstant.JCR_DATA, newInputStream);
-                    xssfWorkbook.close();
-                } else if (mimeType.equals(PPTX_MIMETYPE)) {
-                    XMLSlideShow slideShow = new XMLSlideShow(inputStream);
-                    Iterator<XSLFSlide> slideIterator = slideShow.getSlides().iterator();
-                    while (slideIterator.hasNext()) {
-                        XSLFSlide currentSlide = slideIterator.next();
-                        Iterator<XSLFShape> shapeIterator = currentSlide.iterator();
-                        while (shapeIterator.hasNext()) {
-                            XSLFShape currentShape = shapeIterator.next();
-                            if(currentShape instanceof XSLFTextShape) {
-                                Iterator<XSLFTextParagraph> paragraphIterator = ((XSLFTextShape) currentShape).iterator();
-                                while(paragraphIterator.hasNext()) {
-                                    XSLFTextParagraph paragraph = paragraphIterator.next();
-                                    Iterator<XSLFTextRun> textRunIterator = paragraph.iterator();
-                                    while (textRunIterator.hasNext()) {
-                                        XSLFTextRun currentText = textRunIterator.next();
-                                        XSLFHyperlink hyperlink = currentText.getHyperlink();
-                                        if(hyperlink != null) {
-                                            String oldUrl = hyperlink.getAddress();
-                                            String fileId = getFileIdFromLink(oldUrl);
-                                            String newUrl = null;
-                                            if (fileId != null) {
-                                                newUrl = clonedGFileStorage.getExoLinkByGFileId(fileId);
-                                            }
-                                            if (newUrl != null) {
-                                                XSLFHyperlink link = currentText.createHyperlink();
-                                                link.setLabel(hyperlink.getLabel());
-                                                link.setAddress(newUrl);
+                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                        document.write(outputStream);
+                        InputStream newInputStream = new ByteArrayInputStream(outputStream.toByteArray());
+                        content.setProperty(NodetypeConstant.JCR_DATA, newInputStream);
+                        document.close();
+                    } else if (mimeType.equals(XLSX_MIMETYPE)) {
+                        InputStream inputStream = content.getProperty(NodetypeConstant.JCR_DATA).getStream();
+                        XSSFWorkbook xssfWorkbook = new XSSFWorkbook(inputStream);
+                        CreationHelper helper = xssfWorkbook.getCreationHelper();
+                        int numSheets = xssfWorkbook.getNumberOfSheets();
+                        for (int i = 0; i < numSheets; i++) {
+                            XSSFSheet sheet = xssfWorkbook.getSheetAt(i);
+                            Iterator<Row> rowIterator = sheet.rowIterator();
+                            while (rowIterator.hasNext()) {
+                                Row currentRow = rowIterator.next();
+                                Iterator<Cell> cellIterator = currentRow.cellIterator();
+                                while (cellIterator.hasNext()) {
+                                    Cell currentCell = cellIterator.next();
+                                    Hyperlink oldHyperlink = currentCell.getHyperlink();
+                                    if (oldHyperlink != null) {
+                                        String oldUrl = currentCell.getHyperlink().getAddress();
+                                        String fileId = getFileIdFromLink(oldUrl);
+                                        String newUrl = null;
+                                        if (fileId != null) {
+                                            newUrl = clonedGFileStorage.getExoLinkByGFileId(fileId);
+                                        }
+                                        if (newUrl != null) {
+                                            currentCell.removeHyperlink();
+                                            XSSFHyperlink link = (XSSFHyperlink) helper.createHyperlink(HyperlinkType.URL);
+                                            link.setAddress(newUrl);
+                                            link.setLabel(oldHyperlink.getLabel());
+                                            currentCell.setHyperlink(link);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                        xssfWorkbook.write(outputStream);
+                        InputStream newInputStream = new ByteArrayInputStream(outputStream.toByteArray());
+                        content.setProperty(NodetypeConstant.JCR_DATA, newInputStream);
+                        xssfWorkbook.close();
+                    } else if (mimeType.equals(PPTX_MIMETYPE)) {
+                        InputStream inputStream = content.getProperty(NodetypeConstant.JCR_DATA).getStream();
+                        XMLSlideShow slideShow = new XMLSlideShow(inputStream);
+                        Iterator<XSLFSlide> slideIterator = slideShow.getSlides().iterator();
+                        while (slideIterator.hasNext()) {
+                            XSLFSlide currentSlide = slideIterator.next();
+                            Iterator<XSLFShape> shapeIterator = currentSlide.iterator();
+                            while (shapeIterator.hasNext()) {
+                                XSLFShape currentShape = shapeIterator.next();
+                                if (currentShape instanceof XSLFTextShape) {
+                                    Iterator<XSLFTextParagraph> paragraphIterator = ((XSLFTextShape) currentShape).iterator();
+                                    while (paragraphIterator.hasNext()) {
+                                        XSLFTextParagraph paragraph = paragraphIterator.next();
+                                        Iterator<XSLFTextRun> textRunIterator = paragraph.iterator();
+                                        while (textRunIterator.hasNext()) {
+                                            XSLFTextRun currentText = textRunIterator.next();
+                                            XSLFHyperlink hyperlink = currentText.getHyperlink();
+                                            if (hyperlink != null) {
+                                                String oldUrl = hyperlink.getAddress();
+                                                String fileId = getFileIdFromLink(oldUrl);
+                                                String newUrl = null;
+                                                if (fileId != null) {
+                                                    newUrl = clonedGFileStorage.getExoLinkByGFileId(fileId);
+                                                }
+                                                if (newUrl != null) {
+                                                    XSLFHyperlink link = currentText.createHyperlink();
+                                                    link.setLabel(hyperlink.getLabel());
+                                                    link.setAddress(newUrl);
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
+                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                        slideShow.write(outputStream);
+                        InputStream newInputStream = new ByteArrayInputStream(outputStream.toByteArray());
+                        content.setProperty(NodetypeConstant.JCR_DATA, newInputStream);
+                        slideShow.close();
                     }
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                    slideShow.write(outputStream);
-                    InputStream newInputStream = new ByteArrayInputStream(outputStream.toByteArray());
-                    content.setProperty(NodetypeConstant.JCR_DATA, newInputStream);
-                    slideShow.close();
-                }
                     current.save();
+                } catch (Exception e) {
+
+                }
             }
-            processLinks(current);
+            //processLinks(current);
         }
     }
 
@@ -285,6 +317,7 @@ public class GDriveCloneService {
         String id = about.getRootFolderId();
         Long startTime = System.currentTimeMillis();
         LOG.info("Start GDrive cloning files ...");
+        resetAvailable();
         setClonedFileNumber(0);
         if (StringUtils.isNotBlank(folderOrFileId)) {
             fetchParents(folderOrFileId, driveNode, groupId);
@@ -326,6 +359,7 @@ public class GDriveCloneService {
 
     private List<File> getParentsHierarchy(String id, List files) throws IOException, GoogleDriveException, NotFoundException {
         Iterator iterator = ParentsIterator(id);
+        parentIterators.add(iterator);
         while (iterator.hasNext()) {
             ParentReference parent = (ParentReference) iterator.next();
             File file = this.api.file(parent.getId());
@@ -385,6 +419,7 @@ public class GDriveCloneService {
 
     private void fetchChildren(String id, Node localNode, String groupId) throws Exception {
         GoogleDriveAPI.ChildIterator children = api.children(id);
+        childIterators.add(children);
         while (children.hasNext() && !Thread.currentThread().isInterrupted()) {
             ChildReference child = children.next();
             File gf = api.file(child.getId());
@@ -679,7 +714,7 @@ public class GDriveCloneService {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.error("error occurred while creating file of folder node", e);
             }
             break;
         } while (true);
@@ -693,5 +728,16 @@ public class GDriveCloneService {
 
     public void setClonedFileNumber(int clonedFileNumber) {
         this.clonedFileNumber = clonedFileNumber;
+    }
+
+    public int getAvailable() {
+        int total = childIterators.stream().mapToInt(iter -> (int) iter.getAvailable()).sum();
+        total += parentIterators.stream().mapToInt(Iterators::size).sum();
+        return total;
+    }
+
+    public void resetAvailable() {
+        childIterators.clear();
+        parentIterators.clear();
     }
 }

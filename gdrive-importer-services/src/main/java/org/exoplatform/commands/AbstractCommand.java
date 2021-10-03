@@ -1,5 +1,6 @@
 package org.exoplatform.commands;
 
+import javax.jcr.RepositoryException;
 import java.util.concurrent.ExecutionException;
 
 public class AbstractCommand implements Command, CommandProgress{
@@ -24,18 +25,8 @@ public class AbstractCommand implements Command, CommandProgress{
     }
 
     @Override
-    public String getName() {
+    public String getName() throws RepositoryException {
         return null;
-    }
-
-    @Override
-    public boolean hasChanges() {
-        return false;
-    }
-
-    @Override
-    public void await() throws ExecutionException, InterruptedException {
-
     }
 
     @Override
@@ -53,6 +44,6 @@ public class AbstractCommand implements Command, CommandProgress{
         return 0;
     }
 
-    public void exec() {
-    }
+    public void exec() throws Exception {}
+    public void reset () {}
 }

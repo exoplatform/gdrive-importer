@@ -1,11 +1,10 @@
 package org.exoplatform.commands;
 
-import java.util.concurrent.ExecutionException;
+import javax.jcr.RepositoryException;
 
 public interface Command {
 
     final int COMPLETE = 100;
-
 
     public int getProgress();
 
@@ -15,10 +14,5 @@ public interface Command {
 
     long getFinishTime();
 
-    String getName();
-
-    boolean hasChanges();
-
-    void await() throws ExecutionException, InterruptedException;
-
+    String getName() throws RepositoryException;
 }

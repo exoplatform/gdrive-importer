@@ -30,7 +30,7 @@ public class CloneResponse extends ServiceResponse {
     int       progress;
 
     /** The drive. */
-    DriveData drive;
+    ClonedDrive drive;
 
     /** The error. */
     String    error;
@@ -66,7 +66,7 @@ public class CloneResponse extends ServiceResponse {
      * @param drive the drive
      * @return the connect response
      */
-    public CloneResponse drive(DriveData drive) {
+    public CloneResponse drive(ClonedDrive drive) {
         this.drive = drive;
         return this;
     }
