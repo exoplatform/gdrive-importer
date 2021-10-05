@@ -1,6 +1,7 @@
 (function($, utils, cloudDrives) {
 
     function ClonedDrive() {
+
         var NOTICE_WIDTH = "380px";
         var prefixUrl = utils.pageBaseUrl(location);
         var contextNode;
@@ -19,7 +20,6 @@
             }
         };
         var self = this;
-        var auth;
         (async() => {
             while(cloudDrives.getProviders().gdrive == undefined)
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -52,16 +52,15 @@
                             if (targetNode) {
                                 utils.log("Connecting Cloud Drive to node " + targetNode.path + " in " + targetNode.workspace);
                                 var clone = clonePost(targetNode.workspace, targetNode.path, folderOrFileId, groupId);
-                                self.cloneprocess(clone);
                                 clone.done(function (state, status) {
-                                    utils.log("Connect requested: " + status + ". ");
+                                    utils.log("CLone requested: " + status + ". ");
                                     if (state) {
                                         if (status == 201) {
-                                            utils.log("DONE: " + provider.name + " successfully connected.");
+                                            utils.log("DONE: " + provider.name + " successfully Cloned.");
                                             self.contextDrive = state.drive;
                                             process.resolve(state);
                                         } else if (status == 202) {
-                                           var check = connectCheck(state.serviceUrl);
+                                           var check = cloneCheck(state.serviceUrl);
                                             check.fail(function (error) {
                                                 process.reject(error);
                                             });
@@ -279,7 +278,7 @@
             return process.promise(processTarget);
         };
 
-        var connectCheck = function(checkUrl) {
+        var cloneCheck = function(checkUrl) {
             var process = $.Deferred();
             var serviceUrl = checkUrl;
             // if Accepted start Interval to wait for Created
@@ -354,7 +353,96 @@
             return initRequest(request);
         };
 
-        this.cloneprocess = function(process) {
+        this.cloneState = function(checkUrl, docsUrl, docsOnclick) {
+            var task;
+            if (taskStore) {
+                // add check task to get user notified in case of leaving this
+                // page
+                task = "clonedDrive.cloneState(\"" + checkUrl + "\", \"" + docsUrl + "\", \"" + docsOnclick + "\");";
+                taskStore.add(task);
+            } else {
+                utils.log("Tasks not defined");
+            }
+            var notice = $.pnotify({opacity:0});
+
+            var state = cloneCheck(checkUrl);
+            state.done(function(state) {
+                var message;
+                if (docsUrl) {
+                    message = '<div>Find your drive in <a href="' + docsUrl + '"';
+                    if (docsOnclick) {
+                        message += " onclick='" + docsOnclick + "'";
+                    }
+                    message += "'>Space Documents</div>";
+                } else {
+                    message = "Find your drive in Space Documents";
+                }
+                notice.pnotify({
+                    title : "Your " + state.drive.name + " cloned!",
+                    type : "success",
+                    text : message,
+                    icon : "picon picon-task-complete",
+                    hide : true,
+                    closer : true,
+                    sticker : false,
+                    opacity : 1,
+                    shadow : true,
+                    width : $.pnotify.defaults.width
+                });
+                //driveMessage(state.drive);
+            });
+            state.progress(function (state) {
+                notice.pnotify({
+                    title : "Cloning Your " + state.drive.name,
+                    text: state.progress > 100 ? "100" : state.progress + "% complete.",
+                    type : "info",
+                    icon : "picon picon-throbber",
+                    hide : false,
+                    closer : true,
+                    sticker : false,
+                    opacity : .90,
+                    shadow : false,
+                    nonblock : true,
+                    nonblock_opacity : .25,
+                    width : NOTICE_WIDTH
+                });
+            });
+            state.fail(function(state) {
+                var message;
+                if (state.drive && state.drive.name) {
+                    message = "Error cloning your " + state.drive.name;
+                } else {
+                    message = "Error cloning your drive";
+                }
+                notice.pnotify({
+                    title : message,
+                    text : state.error,
+                    type : "error",
+                    hide : true,
+                    closer : true,
+                    sticker : false,
+                    icon : 'picon picon-dialog-error',
+                    opacity : 1,
+                    shadow : true,
+                    width : $.pnotify.defaults.width
+                });
+            });
+            state.always(function() {
+                if (task) {
+                    taskStore.remove(task);
+                }
+            });
+        };
+
+        var spaceDocumentsLink = function() {
+            var $link = $("a.refreshIcon");
+            if ($link.length > 0) {
+                return $link.attr("href");
+            }
+        };
+
+        this.cloneProcess = function(process) {
+            var task;
             var driveName;
             var progress = 0;
             var hideTimeout;
@@ -362,13 +450,13 @@
 
             // pnotify notice
             var notice = $.pnotify({
-                title : "Cloning in progress...",
+                title : "Waiting for authentication...",
                 type : "info",
                 icon : "picon picon-throbber",
                 hide : false,
                 closer : true,
                 sticker : false,
-                opacity : .75,
+                opacity : .90,
                 shadow : false,
                 nonblock : true,
                 nonblock_opacity : .25,
@@ -385,6 +473,7 @@
             var update = function() {
                 var options = {
                 };
+                progress = progress > 100 ? 100 : progress
                 if (progress > 0) {
                     options.text = progress + "% complete.";
                 }
@@ -410,6 +499,40 @@
 
             process.progress(function(state) {
                 // need update drive name
+                if (!task) {
+                    progress = state.progress;
+                    if (progress > 0) {
+                        driveName = state.drive.name;
+
+                        notice.pnotify({
+                            title : "Cloning Your " + driveName,
+                            text: progress > 100 ? "100" : progress + "% complete."
+                        });
+
+                        // hide title in 5sec
+                        hideTimeout = setTimeout(function() {
+                            notice.pnotify({
+                                title : false,
+                                width : "200px"
+                            });
+                        }, 5000);
+
+                        // add as tasks also
+                        if (taskStore) {
+                            var docsUrl = ", \"" + location + "\"";
+                            var docsOnclick = spaceDocumentsLink();
+                            docsOnclick = docsOnclick ? ", \"" + docsOnclick + "\"" : "";
+                            task = "clonedDrive.cloneState(\"" + state.serviceUrl + "\"" + docsOnclick + ");";
+                            taskStore.add(task);
+                        } else {
+                            utils.log("Tasks not defined");
+                        }
+                    }
+
+                } else {
+                    driveName = state.drive.name;
+                    progress = state.progress;
+                }
                 update();
             });
 
@@ -428,23 +551,11 @@
                         refresh();
                         //driveMessage(state.drive);
                     }, 3000);
-                } else {
-                    var options = {
-                        text : state.error,
-                        title : " Clone process already in progress!",
-                        type : "error",
-                        hide : true,
-                        closer : true,
-                        sticker : false,
-                        icon : "picon picon-process-stop",
-                        opacity : 1,
-                        shadow : true,
-                        width : NOTICE_WIDTH,
-                        // remove non-block
-                        nonblock : false
-                    };
-                    notice.pnotify(options);
-                    refresh();
+                }
+            });
+            process.always(function() {
+                if (task) {
+                    taskStore.remove(task);
                 }
             });
 
@@ -456,7 +567,7 @@
                 // when message undefined/null then process failure silently
                 if (message) {
                     var options = {
-                        text : message.error,
+                        text : message,
                         title : " Error occurred while cloning your drive!",
                         type : "error",
                         hide : true,
@@ -504,6 +615,125 @@
             }
         };
     }
+    function taskStore() {
+        var COOKIE_NAME = "cpgdrive-tasks.exoplatform.org";
+        var loaded = false;
+
+        /**
+         * Add on-load callback to the window object.
+         */
+        var onLoad = function (fn) {
+            if (window.addEventListener) {
+                window.addEventListener("load", fn, false); // W3C
+            } else if (window.attachEvent) {
+                window.attachEvent("onload", fn); // IE8
+            } else {
+                if (window.onload) {
+                    var currOnLoad = window.onload;
+                    var newOnLoad = function () {
+                        if (currOnLoad)
+                            currOnLoad();
+                        fn();
+                    };
+                    window.onload = newOnLoad;
+                } else {
+                    window.onload = fn;
+                }
+            }
+        };
+
+        var store = function (tasks) {
+            utils.setCookie(COOKIE_NAME, tasks, 20 * 60 * 1000); // 20min
+        };
+
+        var removeTask = function (task) {
+            var pcookie = utils.getCookie(COOKIE_NAME);
+            if (pcookie && pcookie.length > 0) {
+                var updated = "";
+                var existing = pcookie.split("~");
+                for (var i = 0; i < existing.length; i++) {
+                    var t = existing[i];
+                    if (t != task) {
+                        updated += updated.length > 0 ? "~" + t : t;
+                    }
+                }
+                store(updated);
+            }
+        };
+
+        var addTask = function (task) {
+            var pcookie = utils.getCookie(COOKIE_NAME);
+            if (pcookie) {
+                if (pcookie.indexOf(task) < 0) {
+                    var tasks = pcookie.length > 0 ? pcookie + "~" + task : task;
+                    store(tasks);
+                }
+            } else {
+                store(task);
+            }
+        };
+
+        /**
+         * Load stored tasks.
+         */
+        var load = function () {
+            // load once per page
+            if (loaded)
+                return;
+
+            // read cookie and eval each stored code
+            var pcookie = utils.getCookie(COOKIE_NAME);
+            if (pcookie && pcookie.length > 0) {
+                try {
+                    var tasks = pcookie.split("~");
+                    for (var i = 0; i < tasks.length; i++) {
+                        var task = tasks[i];
+                        try {
+                            removeTask(task);
+                            utils.log("Loading task [" + task + "]");
+                            eval(task);
+                        } catch (e) {
+                            utils.log("Error evaluating task: " + task + ":" + e + ". Skipped.");
+                        }
+                    }
+                } finally {
+                    loaded = true;
+                    utils.log("Tasks loaded.");
+                }
+            }
+        };
+
+        /**
+         * Register task in store.
+         */
+        this.add = function (task) {
+            if (task) {
+                addTask(task);
+            } else {
+                utils.log("not valid task (code is not defined)");
+            }
+        };
+
+        /**
+         * Remove task from the store.
+         */
+        this.remove = function (task) {
+            removeTask(task);
+        };
+
+
+        $(function () {
+            try {
+                setTimeout(function () {
+                    utils.log("Loading deffered tasks");
+                    load();
+                }, 4000);
+            } catch (e) {
+                utils.log("Error loading tasks", e);
+            }
+        });
+    }
+    var taskStore = new taskStore();
     var clonedDrive = new ClonedDrive();
 
     return clonedDrive;

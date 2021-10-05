@@ -1,24 +1,19 @@
 package org.exoplatform.rest.utils;
 
+import org.exoplatform.gdrive.GoogleUser;
 import org.exoplatform.listener.CloneGDriveListener;
-import org.exoplatform.services.cms.clouddrives.CloudDriveException;
 import org.exoplatform.services.cms.drives.DriveData;
 
+import javax.jcr.Node;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class CloneProcess implements CloneGDriveListener {
 
-    /** The drive. */
-    private final DriveData drive;
-
     /** The process. */
     private final CloneCommand process;
-
-    private int progress;
-
-    /** The workspace name. */
-    final String     workspaceName;
 
     /** The lock. */
     final Lock lock = new ReentrantLock();
@@ -26,10 +21,10 @@ public class CloneProcess implements CloneGDriveListener {
     /** The error. */
     String           error;
 
-    public CloneProcess(DriveData drive, CloneCommand process, String workspaceName) throws CloudDriveException {
-        this.drive = drive;
+
+    public CloneProcess(GoogleUser user, Node driveNode, String folderOrFileId, String groupId, CloneCommand process) throws RepositoryException {
         this.process = process;
-        this.workspaceName = workspaceName;
+        this.process.start(user, driveNode, folderOrFileId, groupId);
     }
 
     public String getError() {
@@ -37,23 +32,15 @@ public class CloneProcess implements CloneGDriveListener {
     }
 
     public int getProgress() {
-        return progress;
-    }
-
-    public void setProgress(int progress) {
-        this.progress = progress;
+        return this.process.getProgress();
     }
 
     public DriveData getDrive() {
-        return drive;
+        return this.process.getDrive();
     }
 
     public CloneCommand getProcess() {
         return process;
-    }
-
-    public String getWorkspaceName() {
-        return workspaceName;
     }
 
     public Lock getLock() {

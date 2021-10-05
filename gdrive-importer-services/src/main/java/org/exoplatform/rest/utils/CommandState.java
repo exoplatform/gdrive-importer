@@ -8,7 +8,7 @@ public class CommandState {
     final String    serviceUrl;
 
     /** The drive. */
-    final DriveData drive;
+    final ClonedDrive drive;
 
     /** The error. */
     final String    error;
@@ -23,7 +23,7 @@ public class CommandState {
      * @param progress the progress
      * @param serviceUrl the service url
      */
-    CommandState(DriveData drive, int progress, String serviceUrl) {
+    CommandState(ClonedDrive drive, int progress, String serviceUrl) {
         this.drive = drive;
         this.progress = progress;
         this.serviceUrl = serviceUrl;
@@ -38,7 +38,7 @@ public class CommandState {
      * @param progress the progress
      * @param serviceUrl the service url
      */
-    CommandState(DriveData drive, String error, int progress, String serviceUrl) {
+    CommandState(ClonedDrive drive, String error, int progress, String serviceUrl) {
         this.drive = drive;
         this.error = error;
         this.progress = progress;
@@ -61,7 +61,7 @@ public class CommandState {
      *
      * @return the drive
      */
-    public DriveData getDrive() {
+    public ClonedDrive getDrive() {
         return drive;
     }
 
