@@ -43,6 +43,7 @@
    <module>
        <name>ClonedDrive</name>
        <script>
+           <minify>false</minify>
            <path>/js/cloned-drive.js</path>
        </script>
        <depends>
