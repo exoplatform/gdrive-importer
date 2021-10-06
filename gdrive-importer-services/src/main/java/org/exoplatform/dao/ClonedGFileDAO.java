@@ -55,6 +55,15 @@ public class ClonedGFileDAO extends GenericDAOJPAImpl<ClonedGFileEntity, Long> {
             return null;
         }
     }
+    public String getExoLinkByCSNRef(String ref) {
+        TypedQuery<String> query = getEntityManager().createNamedQuery("getExoLinkByCSNRef", String.class);
+        query.setParameter("ref", ref);
+        try {
+            return query.getSingleResult();
+        } catch (NoResultException e) {
+            return null;
+        }
+    }
 
     @Override
     @ExoTransactional
@@ -91,4 +100,5 @@ public class ClonedGFileDAO extends GenericDAOJPAImpl<ClonedGFileEntity, Long> {
     public void deleteAll() {
         throw new UnsupportedOperationException();
     }
+
 }

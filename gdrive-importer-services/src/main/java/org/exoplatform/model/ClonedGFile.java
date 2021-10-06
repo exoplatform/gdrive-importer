@@ -10,15 +10,17 @@ public class ClonedGFile implements Serializable {
     private String gFileNodeId;
     private String fileGDriveLink;
     private String fileExoLink;
+    private String gFileCSNRef;
     private Date lastModifiedInGDrive;
     private Date lastCloneDate;
 
-    public ClonedGFile(Long id, String gFileId, String gFileNodeId, String fileGDriveLink, String fileExoLink, Date lastModifiedInGDrive, Date lastCloneDate) {
+    public ClonedGFile(Long id, String gFileId, String gFileNodeId, String fileGDriveLink, String fileExoLink, String gFileCSNRef, Date lastModifiedInGDrive, Date lastCloneDate) {
         this.id = id;
         this.gFileId = gFileId;
         this.gFileNodeId = gFileNodeId;
         this.fileGDriveLink = fileGDriveLink;
         this.fileExoLink = fileExoLink;
+        this.gFileCSNRef = gFileCSNRef;
         this.lastModifiedInGDrive = lastModifiedInGDrive;
         this.lastCloneDate = lastCloneDate;
     }
@@ -79,5 +81,13 @@ public class ClonedGFile implements Serializable {
 
     public void setLastCloneDate(Date lastCloneDate) {
         this.lastCloneDate = lastCloneDate;
+    }
+
+    public String getGFileCSNRef() {
+        return gFileCSNRef;
+    }
+
+    public void setGFileCSNRef(String gFileCSNRef) {
+        this.gFileCSNRef = gFileCSNRef;
     }
 }

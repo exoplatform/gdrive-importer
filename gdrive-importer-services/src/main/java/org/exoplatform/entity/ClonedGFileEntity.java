@@ -21,6 +21,10 @@ import java.util.Date;
         @NamedQuery(
                 name= "getClonedFileByGLink",
                 query = "SELECT gfile FROM ClonedGFileEntity gfile WHERE gfile.gFileId =:id"
+        ),
+        @NamedQuery(
+                name = "getExoLinkByCSNRef",
+                query = "SELECT gfile.fileExoLink FROM ClonedGFileEntity gfile WHERE gfile.gFileCSNRef =:ref"
         )
 })
 public class ClonedGFileEntity implements Serializable {
@@ -41,6 +45,9 @@ public class ClonedGFileEntity implements Serializable {
 
     @Column(name = "CL_GFILE_LINK_EXO", nullable = false)
     private String fileExoLink;
+
+    @Column(name = "CL_GFILE_CSN_REF")
+    private String gFileCSNRef;
 
     @Column(name = "CL_GFILE_LAST_MODIFIED", nullable = false)
     private Date lastModifiedInGDrive;
@@ -102,5 +109,13 @@ public class ClonedGFileEntity implements Serializable {
 
     public void setLastCloneDate(Date lastCloneDate) {
         this.lastCloneDate = lastCloneDate;
+    }
+
+    public String getGFileCSNRef() {
+        return gFileCSNRef;
+    }
+
+    public void setGFileCSNRef(String gFileCSNRef) {
+        this.gFileCSNRef = gFileCSNRef;
     }
 }
