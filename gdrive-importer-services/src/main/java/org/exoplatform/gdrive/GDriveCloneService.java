@@ -517,7 +517,7 @@ public class GDriveCloneService {
                     try {
                         return this.api.drive.files().export(fileId, getMimeTypeToExport(mimeType)).executeMedia().getContent();
                     } catch (IOException ioException) {
-                        LOG.error("Error getting file from Files service: " + e.getMessage(), e);
+                        LOG.error("Error getting file from Files service: ", e);
                     }
                 } else {
                     try {
@@ -531,7 +531,7 @@ public class GDriveCloneService {
                 }
             }
         } catch (IOException e) {
-            LOG.error("Error requesting file from Files service: " + e.getMessage(), e);
+            LOG.error("Error requesting file from Files service: ", e);
         }
         return null;
     }
@@ -635,7 +635,7 @@ public class GDriveCloneService {
                 LOG.error("Cloud file not found: " + fileLink, e);
             }
         } catch (IOException e) {
-            LOG.error("Error requesting file from Files service: " + e.getMessage(), e);
+            LOG.error("Error requesting file from Files service: ", e);
         }
         return null;
     }
