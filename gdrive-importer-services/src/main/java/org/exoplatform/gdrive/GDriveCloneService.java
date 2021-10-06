@@ -220,6 +220,7 @@ public class GDriveCloneService {
                                         ctr.setTArray(new CTText[]{ctText});
                                         ctHyperlink.setRArray(new CTR[]{ctr});
                                     }
+                                    LOG.info("Old URL changed from {} to {}", oldUrl, newUrl);
                                 }
                             }
                         }
