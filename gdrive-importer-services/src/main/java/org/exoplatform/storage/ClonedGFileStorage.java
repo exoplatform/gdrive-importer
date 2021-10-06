@@ -32,6 +32,10 @@ public class ClonedGFileStorage {
         return clonedGFileDAO.getExoLinkByGFileId(id);
     }
 
+    public String getExoLinkByCSNRef(String ref) {
+        return clonedGFileDAO.getExoLinkByCSNRef(ref);
+    }
+
     public String getGFileLinkByNodeUUID(String uuid) {
         return clonedGFileDAO.getExoLinkByGFileId(uuid);
     }

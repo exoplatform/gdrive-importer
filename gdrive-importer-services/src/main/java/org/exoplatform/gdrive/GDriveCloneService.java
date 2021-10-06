@@ -21,6 +21,7 @@ import org.apache.poi.xwpf.usermodel.XWPFHyperlinkRun;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRelation;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.model.ClonedGFile;
 import org.exoplatform.services.cms.clouddrives.CloudDriveException;
 import org.exoplatform.services.cms.clouddrives.CloudUser;
@@ -46,6 +47,7 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.query.Query;
 import javax.jcr.query.QueryManager;
+import javax.jcr.query.RowIterator;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -108,11 +110,14 @@ public class GDriveCloneService {
     private static final String     XLSX_MIMETYPE                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private static final String     PPTX_MIMETYPE                   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
+    private static final String     FILE_RESOURCE_LINK_PROPERTY     = "copygdrive.links.fileresource.hyperlink";
+
     private ManageDriveService manageDriveService;
     private ClonedGFileStorage clonedGFileStorage;
     private RepositoryService repositoryService;
     private GoogleDriveAPI api;
     private DocumentService documentService;
+    private XSSFSheet resourceFileSheet;
 
     private final List<ChunkIterator<?>> childIterators = new ArrayList<>();
     private final List<Iterator<ParentReference>> parentIterators = new ArrayList<>();
@@ -141,6 +146,7 @@ public class GDriveCloneService {
             } catch (Exception e) {
                 LOG.error("error while creating cloned drive", e);
             }
+            resourceFileSheet = getBaseResourceLinksFileSheet();
             fetchFiles(user, driveNode, folderOrFileId, groupId);
             Long startTime = System.currentTimeMillis();
             LOG.info("Start process Links of cloned files");
@@ -182,9 +188,13 @@ public class GDriveCloneService {
                                     countLink++;
                                     String oldUrl = ((XWPFHyperlinkRun) runs[i]).getHyperlink(document).getURL();
                                     String fileId = getFileIdFromLink(oldUrl);
+                                    String ref = getFileCSNRefFromLink(oldUrl);
                                     String newUrl = null;
                                     if (fileId != null) {
                                         newUrl = clonedGFileStorage.getExoLinkByGFileId(fileId);
+                                    }
+                                    if (newUrl == null && ref != null) {
+                                        newUrl = clonedGFileStorage.getExoLinkByCSNRef(ref);
                                     }
                                     CTHyperlink oldLink = para.getCTP().getHyperlinkArray(countLink);
                                     List<CTText> ctTextList = oldLink.getRList().get(0).getTList();
@@ -439,8 +449,12 @@ public class GDriveCloneService {
 
     private void addClonedFile(Node fileNode, String groupId, String fileId, String fileGDriveLink, Date lastModifiedInGDrive) throws Exception {
         String exoLink = documentService.getDocumentUrlInSpaceDocuments(fileNode, groupId);
+        String fileCSNRef = null;
+        if (resourceFileSheet != null) {
+            fileCSNRef = this.getFileRefFromFileResource(resourceFileSheet, fileId);
+        }
         ClonedGFile clonedGFile = new ClonedGFile(null, fileId, fileNode.getUUID(), fileGDriveLink,
-                exoLink, lastModifiedInGDrive, Calendar.getInstance().getTime());
+                exoLink, fileCSNRef, lastModifiedInGDrive, Calendar.getInstance().getTime());
         ClonedGFile exist = clonedGFileStorage.getClonedFileByGLink(fileId);
         if (exist == null) {
             clonedGFileStorage.addClonedFile(clonedGFile);
@@ -480,6 +494,17 @@ public class GDriveCloneService {
         }
         return null;
     }
+
+    private String getFileCSNRefFromLink(String link) {
+        if (link.startsWith("https://script.google.com") && link.contains("exec?link=")) {
+            int index = link.indexOf("exec?link=");
+            if (index != -1) {
+                return link.substring(index + "exec?link=".length()).replaceAll("\\s+$", "");
+            }
+        }
+        return null;
+    }
+
     private InputStream getGFileInputStream(String fileId, String mimeType, Long size, String link) throws NotFoundException, GoogleDriveException {
         try {
             return this.api.drive.files().get(fileId).executeMediaAsInputStream();
@@ -585,6 +610,55 @@ public class GDriveCloneService {
             }
         }
         return found;
+    }
+
+    private XSSFSheet getBaseResourceLinksFileSheet() {
+        LOG.info("Start reading GDrive links resource file");
+        String fileLink = PropertyManager.getProperty(FILE_RESOURCE_LINK_PROPERTY);
+        if (fileLink == null) {
+            LOG.info("No links resource file was found!");
+            return null;
+        }
+        try {
+            if (getExportLink(fileLink) != null) {
+                InputStream inputStream = this.api.drive.getRequestFactory().
+                        buildGetRequest(new GenericUrl(getExportLink(fileLink))).execute().getContent();
+                if (inputStream != null) {
+                    XSSFWorkbook xssfWorkbook = new XSSFWorkbook(inputStream);
+                    XSSFSheet sheet = xssfWorkbook.getSheetAt(0);
+                    LOG.info("End reading GDrive links resource file");
+                    return sheet;
+                }
+            }
+        } catch (GoogleJsonResponseException e) {
+            if (e.getStatusCode() == 404) {
+                LOG.error("Cloud file not found: " + fileLink, e);
+            }
+        } catch (IOException e) {
+            LOG.error("Error requesting file from Files service: " + e.getMessage(), e);
+        }
+        return null;
+    }
+
+    private String getFileRefFromFileResource(XSSFSheet sheet, String filId) {
+        Iterator<Row> rowIterator = sheet.rowIterator();
+        while (rowIterator.hasNext()) {
+            Row currentRow = rowIterator.next();
+            if (currentRow.getRowNum() == 0) {
+                continue;
+            }
+            Iterator<Cell> cellIterator = currentRow.cellIterator();
+            int fetchedCells = 1;
+            while (cellIterator.hasNext() && fetchedCells <= 2) {
+                fetchedCells++;
+                Cell currentCell = cellIterator.next();
+                if (currentCell.getCellType().toString().equals("STRING") && currentCell.getColumnIndex() == 0
+                        && currentCell.getStringCellValue().equals(filId)) {
+                    return currentRow.getCell(1).getStringCellValue();
+                }
+            }
+        }
+        return null;
     }
 
     private Iterator<ParentReference> ParentsIterator (String fileId) throws IOException {

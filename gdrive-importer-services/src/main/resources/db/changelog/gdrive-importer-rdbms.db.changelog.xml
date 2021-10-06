@@ -46,4 +46,11 @@
             <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
         </modifySql>
     </changeSet>
+
+    <changeSet author="gdrive-importer" id="1.0.0-2" >
+        <addColumn tableName="COPY_GDRIVE_CL_GFILE">
+            <column name="CL_GFILE_CSN_REF" type="NVARCHAR(50)"></column>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

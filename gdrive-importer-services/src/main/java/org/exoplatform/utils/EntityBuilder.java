@@ -7,6 +7,7 @@ public class EntityBuilder {
     public static ClonedGFileEntity toEntity(ClonedGFile clonedGFile) {
         ClonedGFileEntity clonedGFileEntity = new ClonedGFileEntity();
         clonedGFileEntity.setId(clonedGFile.getId());
+        clonedGFileEntity.setGFileCSNRef(clonedGFile.getGFileCSNRef());
         clonedGFileEntity.setGFileId(clonedGFile.getGFileId());
         clonedGFileEntity.setGFileNodeId(clonedGFile.getGFileNodeId());
         clonedGFileEntity.setFileGDriveLink(clonedGFile.getFileGDriveLink());
@@ -20,6 +21,7 @@ public class EntityBuilder {
     public static ClonedGFile fromEntity(ClonedGFileEntity clonedGFileEntity) {
         ClonedGFile clonedGFile = new ClonedGFile();
         clonedGFile.setId(clonedGFileEntity.getId());
+        clonedGFile.setGFileCSNRef(clonedGFileEntity.getGFileCSNRef());
         clonedGFile.setGFileId(clonedGFileEntity.getGFileId());
         clonedGFile.setGFileNodeId(clonedGFileEntity.getGFileNodeId());
         clonedGFile.setFileGDriveLink(clonedGFileEntity.getFileGDriveLink());
