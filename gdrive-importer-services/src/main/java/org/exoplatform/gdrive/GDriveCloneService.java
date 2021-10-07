@@ -828,7 +828,7 @@ public class GDriveCloneService {
                     }
                 }
             } catch (Exception e) {
-                LOG.error("error occurred while creating file of folder node", e);
+                LOG.error("error occurred while creating file or folder node", e);
             }
             break;
         } while (true);
