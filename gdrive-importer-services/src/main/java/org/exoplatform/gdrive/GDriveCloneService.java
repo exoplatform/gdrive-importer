@@ -441,11 +441,13 @@ public class GDriveCloneService {
         if (sizeToMegaBytes(size) <= 190) {
             InputStream inputStream = getGFileInputStream(file.getId(), file.getMimeType(), size, link);
             fileNode = openNode(file.getTitle(), driveNode, "nt:file", file.getMimeType(), modified, file.getFileExtension());
-            fileNode = makeFileNode(fileNode, file.getTitle(), file.getMimeType(), file.getOwnerNames().get(0),
-                    file.getLastModifyingUserName(), created, modified, inputStream, file.getFileExtension());
-            addClonedFile(fileNode, groupId, file.getId(), file.getAlternateLink(), modified.getTime());
-            LOG.info("File with name {} was successfully cloned!", file.getTitle());
-            clonedFileNumber++;
+            if (fileNode != null) {
+                fileNode = makeFileNode(fileNode, file.getTitle(), file.getMimeType(), file.getOwnerNames().get(0),
+                        file.getLastModifyingUserName(), created, modified, inputStream, file.getFileExtension());
+                addClonedFile(fileNode, groupId, file.getId(), file.getAlternateLink(), modified.getTime());
+                LOG.info("File with name {} was successfully cloned!", file.getTitle());
+                clonedFileNumber++;
+            }
         }
         return fileNode;
     }
