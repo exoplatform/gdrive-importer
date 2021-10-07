@@ -607,7 +607,8 @@ public class GDriveCloneService {
                 return title.endsWith(".ppt") ? newTitle.concat(".pptx") : title.concat(".pptx");
             }
         }
-        if (title.endsWith(" ") && extension != null) {
+
+        if (extension != null && !title.endsWith("." + extension)) {
             title = title.concat("." + extension);
         } else {
             title = title.replaceAll("\\s+$", "");
