@@ -392,9 +392,14 @@
                 //driveMessage(state.drive);
             });
             state.progress(function (state) {
-                var processLinks = state.progress >= 100 ? "\n Processing Links..." :"";
+                var processLinks = "";
+                if (state.progress >= 100 && state.drive.linksProcessed === false) {
+                    processLinks = "\n Processing Links...";
+                } else if (state.progress >= 100 && state.drive.linksProcessed === true) {
+                    processLinks = "\n Processing Links terminated";
+                }
                 notice.pnotify({
-                    title : "Cloning Your " + state.drive.name + processLinks,
+                    title: "Cloning Your " + state.drive.name + processLinks,
                     text: state.progress > 100 ? "100" : state.progress + "% complete.",
                     type : "info",
                     icon : "picon picon-throbber",
@@ -483,8 +488,13 @@
                     options.title = "Almost Done...";
                 }
                 if (progress >= 100) {
-                    var icon = linksProcessFinished == true ? "picon-task-complete" : "picon-throbber"
-                    var processLinks = progress >= 100 ? "\n Processing Links..." :"";
+                    var icon = linksProcessFinished === true ? "picon-task-complete" : "picon-throbber"
+                    var processLinks = "";
+                    if (progress >= 100 && linksProcessFinished === false) {
+                        processLinks = "\n Processing Links...";
+                    } else if( progress >= 100 && linksProcessFinished === true) {
+                        processLinks = "\n Processing Links terminated";
+                    }
                     options.title = driveName + " Cloned!" + processLinks;
                     options.type = "success";
                     options.hide = true;

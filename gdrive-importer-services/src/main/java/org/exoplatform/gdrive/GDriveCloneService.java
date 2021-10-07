@@ -107,6 +107,11 @@ public class GDriveCloneService {
     private static final String     XLSX_MIMETYPE                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private static final String     PPTX_MIMETYPE                   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
+    private static final String     DOC_MIMETYPE                    = "application/msword";
+    private static final String     XLS_MIMETYPE                    = "application/vnd.ms-excel";
+    private static final String     PPT_MIMETYPE                    = "application/vnd.ms-powerpoint";
+
+    private static final String     PDF_MIMETYPE                    = "application/pdf";
     private static final String     FILE_RESOURCE_LINK_PROPERTY     = "copygdrive.links.fileresource.hyperlink";
 
     private ManageDriveService manageDriveService;
@@ -523,9 +528,14 @@ public class GDriveCloneService {
         return null;
     }
 
-    private InputStream getGFileInputStream(String fileId, String mimeType, Long size, String link) throws NotFoundException, GoogleDriveException {
+    private InputStream getGFileInputStream(String fileId, String mimeType, Long size, String link) {
         try {
-            return this.api.drive.files().get(fileId).executeMediaAsInputStream();
+            if (!mimeType.equals(DOC_MIMETYPE) && !mimeType.equals(XLS_MIMETYPE) && !mimeType.equals(PPT_MIMETYPE)) {
+                return this.api.drive.files().get(fileId).executeMediaAsInputStream();
+            } else {
+                return this.api.drive.getRequestFactory().
+                        buildGetRequest(new GenericUrl(getExportLink(link))).execute().getContent();
+            }
         } catch (GoogleJsonResponseException e) {
             if (e.getStatusCode() == 404) {
                 LOG.error("Cloud file not found: " + fileId, e);
@@ -566,11 +576,11 @@ public class GDriveCloneService {
     }
 
     private String getMimeTypeToExport(String mimeType) {
-        if (mimeType.equals(G_DOCS_MIME_TYPE)) {
+        if (mimeType.equals(G_DOCS_MIME_TYPE) || mimeType.equals(DOC_MIMETYPE)) {
             return DOCX_MIMETYPE;
-        } else if (mimeType.equals(G_SHEETS_MIME_TYPE)) {
+        } else if (mimeType.equals(G_SHEETS_MIME_TYPE) || mimeType.equals(XLS_MIMETYPE)) {
             return XLSX_MIMETYPE;
-        } else if (mimeType.equals(G_PRESENTATIONS_MIME_TYPE)) {
+        } else if (mimeType.equals(G_PRESENTATIONS_MIME_TYPE) || mimeType.equals(PPT_MIMETYPE)) {
             return PPTX_MIMETYPE;
         }
         return mimeType;
@@ -583,8 +593,18 @@ public class GDriveCloneService {
             return title.concat(".xlsx");
         } else if (mimeType.equals(G_PRESENTATIONS_MIME_TYPE)) {
             return title.concat(".pptx");
+        } else if (mimeType.equals(PDF_MIMETYPE) && !title.endsWith(".pdf")) {
+            return title.concat(".pdf");
+        } else {
+            String newTitle = title.substring(0, title.length() - 4);
+            if (mimeType.equals(DOC_MIMETYPE)) {
+                return title.endsWith(".doc") ? newTitle.concat(".docx") : title.concat(".docx");
+            } else if (mimeType.equals(XLS_MIMETYPE)) {
+                return title.endsWith(".xls") ? newTitle.concat(".xlsx") : title.concat(".xlsx");
+            } else if (mimeType.equals(PPT_MIMETYPE)) {
+                return title.endsWith(".ppt") ? newTitle.concat(".pptx") : title.concat(".pptx");
+            }
         }
-
         if (title.endsWith(" ") && extension != null) {
             title = title.concat("." + extension);
         } else {
