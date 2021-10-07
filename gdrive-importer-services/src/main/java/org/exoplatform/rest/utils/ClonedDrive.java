@@ -7,6 +7,7 @@ public class ClonedDrive {
     private String name;
     private String workspace;
     private boolean cloned;
+    private boolean linksProcessed;
     private DriveData driveData;
 
     public String getName() {
@@ -39,5 +40,13 @@ public class ClonedDrive {
 
     public void setDriveData(DriveData driveData) {
         this.driveData = driveData;
+    }
+
+    public boolean isLinksProcessed() {
+        return linksProcessed;
+    }
+
+    public void setLinksProcessed(boolean linksProcessed) {
+        this.linksProcessed = linksProcessed;
     }
 }

@@ -383,6 +383,7 @@ public class CopyGDriveRestConnect implements ResourceContainer {
                         resp.status(Response.Status.CREATED);
                         clonedDrive.setCloned(true);
                         clonedDrive.setDriveData(driveData);
+                        clonedDrive.setLinksProcessed(cloneProcess.getProcess().linksProcessed());
                         resp.drive(clonedDrive);
                         active.remove(processId);
 
@@ -390,6 +391,7 @@ public class CopyGDriveRestConnect implements ResourceContainer {
                         clonedDrive.setWorkspace(workspace);
                         clonedDrive.setCloned(false);
                         resp.status(Response.Status.ACCEPTED);
+                        clonedDrive.setLinksProcessed(cloneProcess.getProcess().linksProcessed());
                         resp.progress(cloneProcess.getProgress());
                         resp.drive(clonedDrive);
                     }
@@ -443,10 +445,12 @@ public class CopyGDriveRestConnect implements ResourceContainer {
                         clonedDrive.setDriveData(cloneProcess.getDrive());
                         clonedDrive.setName(cloneProcess.getDrive().getName());
                         clonedDrive.setWorkspace(cloneProcess.getDrive().getWorkspace());
+                        clonedDrive.setLinksProcessed(cloneProcess.getProcess().linksProcessed());
                         response.drive(clonedDrive);
                         response.status(Response.Status.CREATED);
                     } else {
                         clonedDrive.setCloned(false);
+                        clonedDrive.setLinksProcessed(cloneProcess.getProcess().linksProcessed());
                         clonedDrive.setName(cloneProcess.getProcess().getName());
                         clonedDrive.setWorkspace(workspace);
                         response.drive(clonedDrive);

@@ -392,8 +392,9 @@
                 //driveMessage(state.drive);
             });
             state.progress(function (state) {
+                var processLinks = state.progress >= 100 ? "\n Processing Links..." :"";
                 notice.pnotify({
-                    title : "Cloning Your " + state.drive.name,
+                    title : "Cloning Your " + state.drive.name + processLinks,
                     text: state.progress > 100 ? "100" : state.progress + "% complete.",
                     type : "info",
                     icon : "picon picon-throbber",
@@ -442,6 +443,7 @@
         };
 
         this.cloneProcess = function(process) {
+            var linksProcessFinished = false
             var task;
             var driveName;
             var progress = 0;
@@ -481,12 +483,14 @@
                     options.title = "Almost Done...";
                 }
                 if (progress >= 100) {
-                    options.title = driveName + " Cloned!";
+                    var icon = linksProcessFinished == true ? "picon-task-complete" : "picon-throbber"
+                    var processLinks = progress >= 100 ? "\n Processing Links..." :"";
+                    options.title = driveName + " Cloned!" + processLinks;
                     options.type = "success";
                     options.hide = true;
                     options.closer = true;
                     options.sticker = false;
-                    options.icon = "picon picon-task-complete";
+                    options.icon = "picon " + icon;
                     options.opacity = 1;
                     options.shadow = true;
                     options.width = NOTICE_WIDTH;
@@ -532,6 +536,7 @@
                 } else {
                     driveName = state.drive.name;
                     progress = state.progress;
+                    linksProcessFinished = state.drive.linksProcessed;
                 }
                 update();
             });
@@ -539,6 +544,7 @@
             process.done(function (state) {
                 if (state.drive && !state.error) {
                     driveName = state.drive.name;
+                    linksProcessFinished = state.drive.linksProcessed;
                     if (hideTimeout) {
                         clearTimeout(hideTimeout);
                     }

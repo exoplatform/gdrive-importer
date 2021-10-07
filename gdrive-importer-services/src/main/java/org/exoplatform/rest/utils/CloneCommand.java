@@ -55,6 +55,10 @@ public class CloneCommand extends AbstractCommand {
         driveData = gDriveCloneService.cloneCloudDrive(user, workspace, driveNodeUUID, folderOrFileId, groupId);
     }
 
+    @Override
+    public boolean linksProcessed () {
+        return gDriveCloneService.isLinksProcessed();
+    }
 
     @Override
     public void exec(){
@@ -68,6 +72,7 @@ public class CloneCommand extends AbstractCommand {
         finished = false;
         gDriveCloneService.resetAvailable();
         gDriveCloneService.setClonedFileNumber(0);
+        gDriveCloneService.setLinksProcessed(false);
     }
 
     @Override
@@ -87,7 +92,7 @@ public class CloneCommand extends AbstractCommand {
 
     @Override
     public boolean isDone() {
-        return commandState == 0 && finished == true && driveData != null;
+        return commandState == 0 && finished == true && driveData != null && linksProcessed();
     }
 
     public Future<Command> start(GoogleUser user, Node driveNode, String folderOrFileId, String groupId) throws RepositoryException {

@@ -16,10 +16,7 @@ import org.apache.poi.xslf.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFHyperlink;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFHyperlinkRun;
-import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-import org.apache.poi.xwpf.usermodel.XWPFRelation;
+import org.apache.poi.xwpf.usermodel.*;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.model.ClonedGFile;
@@ -118,7 +115,7 @@ public class GDriveCloneService {
     private GoogleDriveAPI api;
     private DocumentService documentService;
     private XSSFSheet resourceFileSheet;
-
+    private boolean linksProcessed = false;
     private final List<ChunkIterator<?>> childIterators = new ArrayList<>();
     private final List<Iterator<ParentReference>> parentIterators = new ArrayList<>();
     private int clonedFileNumber;
@@ -151,6 +148,7 @@ public class GDriveCloneService {
             Long startTime = System.currentTimeMillis();
             LOG.info("Start process Links of cloned files");
             processLinks(driveNode);
+            setLinksProcessed(true);
             long endTime = System.currentTimeMillis();
             long period = ((endTime - startTime) / 1000) / 60;
             LOG.info("End process Links of cloned files in {} minutes", period);
@@ -161,6 +159,53 @@ public class GDriveCloneService {
             sessionProvider.close();
         }
         return null;
+    }
+
+    private void updateDocxHyperlinks (List<XWPFParagraph> paragraphs, XWPFDocument document) {
+        for (XWPFParagraph para : paragraphs) {
+            final Object[] runs = para.getRuns().toArray();
+            int countLink = -1;
+            for (int i = 0; i < runs.length; i++) {
+                if (runs[i] instanceof XWPFHyperlinkRun) {
+                    countLink++;
+                    String oldUrl = ((XWPFHyperlinkRun) runs[i]).getHyperlink(document).getURL();
+                    String fileId = getFileIdFromLink(oldUrl);
+                    String ref = getFileCSNRefFromLink(oldUrl);
+                    String newUrl = null;
+                    if (fileId != null) {
+                        newUrl = clonedGFileStorage.getExoLinkByGFileId(fileId);
+                    }
+                    if (newUrl == null && ref != null) {
+                        newUrl = clonedGFileStorage.getExoLinkByCSNRef(ref);
+                    }
+                    CTHyperlink oldLink = para.getCTP().getHyperlinkArray(countLink);
+                    List<CTText> ctTextList = oldLink.getRList().get(0).getTList();
+                    String text = ctTextList.get(0).getStringValue();
+                    String linkId;
+                    if (newUrl != null) {
+                        linkId = para
+                                .getDocument()
+                                .getPackagePart()
+                                .addExternalRelationship(newUrl,
+                                        XWPFRelation.HYPERLINK.getRelation()).getId();
+
+                        CTHyperlink ctHyperlink = para.getCTP().getHyperlinkArray(countLink);
+                        ctHyperlink.setId(linkId);
+                        CTText ctText = CTText.Factory.newInstance();
+                        ctText.setStringValue(text);
+                        CTR ctr = CTR.Factory.newInstance();
+                        CTRPr ctrPr = ctr.addNewRPr();
+                        CTColor color = CTColor.Factory.newInstance();
+                        color.setVal("0000FF");
+                        ctrPr.setColor(color);
+                        ctrPr.addNewU().setVal(STUnderline.SINGLE);
+                        ctr.setTArray(new CTText[]{ctText});
+                        ctHyperlink.setRArray(new CTR[]{ctr});
+                        LOG.info("Processed Link changed from {} to {}", oldUrl, newUrl);
+                    }
+                }
+            }
+        }
     }
 
     private void processLinks(Node driveNode) throws RepositoryException {
@@ -180,47 +225,17 @@ public class GDriveCloneService {
                         InputStream inputStream = content.getProperty(NodetypeConstant.JCR_DATA).getStream();
                         XWPFDocument document = new XWPFDocument(inputStream);
                         List<XWPFParagraph> paragraphs = document.getParagraphs();
-                        for (XWPFParagraph para : paragraphs) {
-                            final Object[] runs = para.getRuns().toArray();
-                            int countLink = -1;
-                            for (int i = 0; i < runs.length; i++) {
-                                if (runs[i] instanceof XWPFHyperlinkRun) {
-                                    countLink++;
-                                    String oldUrl = ((XWPFHyperlinkRun) runs[i]).getHyperlink(document).getURL();
-                                    String fileId = getFileIdFromLink(oldUrl);
-                                    String ref = getFileCSNRefFromLink(oldUrl);
-                                    String newUrl = null;
-                                    if (fileId != null) {
-                                        newUrl = clonedGFileStorage.getExoLinkByGFileId(fileId);
+                        updateDocxHyperlinks(paragraphs, document);
+                        List<XWPFTable> tables = document.getTables();
+                        if (tables.size() != 0) {
+                            for (XWPFTable table : tables) {
+                                List<XWPFTableRow> rows = table.getRows();
+                                for (XWPFTableRow row : rows) {
+                                    List<XWPFTableCell> cells = row.getTableCells();
+                                    for (XWPFTableCell cell : cells) {
+                                        List<XWPFParagraph> cellParagraphs = cell.getParagraphs();
+                                        updateDocxHyperlinks(cellParagraphs, document);
                                     }
-                                    if (newUrl == null && ref != null) {
-                                        newUrl = clonedGFileStorage.getExoLinkByCSNRef(ref);
-                                    }
-                                    CTHyperlink oldLink = para.getCTP().getHyperlinkArray(countLink);
-                                    List<CTText> ctTextList = oldLink.getRList().get(0).getTList();
-                                    String text = ctTextList.get(0).getStringValue();
-                                    String linkId;
-                                    if (newUrl != null) {
-                                        linkId = para
-                                                .getDocument()
-                                                .getPackagePart()
-                                                .addExternalRelationship(newUrl,
-                                                        XWPFRelation.HYPERLINK.getRelation()).getId();
-
-                                        CTHyperlink ctHyperlink = para.getCTP().getHyperlinkArray(countLink);
-                                        ctHyperlink.setId(linkId);
-                                        CTText ctText = CTText.Factory.newInstance();
-                                        ctText.setStringValue(text);
-                                        CTR ctr = CTR.Factory.newInstance();
-                                        CTRPr ctrPr = ctr.addNewRPr();
-                                        CTColor color = CTColor.Factory.newInstance();
-                                        color.setVal("0000FF");
-                                        ctrPr.setColor(color);
-                                        ctrPr.addNewU().setVal(STUnderline.SINGLE);
-                                        ctr.setTArray(new CTText[]{ctText});
-                                        ctHyperlink.setRArray(new CTR[]{ctr});
-                                    }
-                                    LOG.info("Old URL changed from {} to {}", oldUrl, newUrl);
                                 }
                             }
                         }
@@ -256,6 +271,7 @@ public class GDriveCloneService {
                                             link.setAddress(newUrl);
                                             link.setLabel(oldHyperlink.getLabel());
                                             currentCell.setHyperlink(link);
+                                            LOG.info("Processed Link changed from {} to {}", oldUrl, newUrl);
                                         }
                                     }
                                 }
@@ -294,6 +310,7 @@ public class GDriveCloneService {
                                                     XSLFHyperlink link = currentText.createHyperlink();
                                                     link.setLabel(hyperlink.getLabel());
                                                     link.setAddress(newUrl);
+                                                    LOG.info("Processed Link changed from {} to {}", oldUrl, newUrl);
                                                 }
                                             }
                                         }
@@ -814,5 +831,13 @@ public class GDriveCloneService {
     public void resetAvailable() {
         childIterators.clear();
         parentIterators.clear();
+    }
+
+    public boolean isLinksProcessed() {
+        return linksProcessed;
+    }
+
+    public void setLinksProcessed(boolean linksProcessed) {
+        this.linksProcessed = linksProcessed;
     }
 }

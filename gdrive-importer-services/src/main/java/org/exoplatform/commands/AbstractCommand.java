@@ -30,6 +30,11 @@ public class AbstractCommand implements Command, CommandProgress{
     }
 
     @Override
+    public boolean linksProcessed() {
+        return false;
+    }
+
+    @Override
     public long getComplete() {
         return 0;
     }

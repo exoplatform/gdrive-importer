@@ -14,5 +14,7 @@ public interface Command {
 
     long getFinishTime();
 
+    public boolean linksProcessed () ;
+
     String getName() throws RepositoryException;
 }
