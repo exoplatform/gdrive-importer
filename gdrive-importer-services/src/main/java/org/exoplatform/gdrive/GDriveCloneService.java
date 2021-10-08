@@ -107,6 +107,7 @@ public class GDriveCloneService {
     private static final String     XLSX_MIMETYPE                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private static final String     PPTX_MIMETYPE                   = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
+    private static final String     DOTX_MIMETYPE                   = "application/vnd.openxmlformats-officedocument.wordprocessingml.template";
     private static final String     DOC_MIMETYPE                    = "application/msword";
     private static final String     XLS_MIMETYPE                    = "application/vnd.ms-excel";
     private static final String     PPT_MIMETYPE                    = "application/vnd.ms-powerpoint";
@@ -124,7 +125,7 @@ public class GDriveCloneService {
     private final List<ChunkIterator<?>> childIterators = new ArrayList<>();
     private final List<Iterator<ParentReference>> parentIterators = new ArrayList<>();
     private int clonedFileNumber;
-
+    private int ignoredFileNumber;
     public GDriveCloneService(ManageDriveService manageDriveService, ClonedGFileStorage clonedGFileStorage,
                               DocumentService documentService, RepositoryService repositoryService) {
         this.manageDriveService = manageDriveService;
@@ -352,6 +353,7 @@ public class GDriveCloneService {
         LOG.info("Start GDrive cloning files ...");
         resetAvailable();
         setClonedFileNumber(0);
+        setIgnoredFileNumber(0);
         if (StringUtils.isNotBlank(folderOrFileId)) {
             fetchParents(folderOrFileId, driveNode, groupId);
         } else {
@@ -516,6 +518,8 @@ public class GDriveCloneService {
             return link.split("/spreadsheets/u/1/d/")[1].split("/")[0];
         } else if (link.contains("/presentation/u/1/d/")) {
             return link.split("/presentation/u/1/d/")[1].split("/")[0];
+        } else if (link.contains("/file/d/")) {
+            return link.split("/file/d/")[1].split("/")[0];
         }
         return null;
     }
@@ -597,6 +601,8 @@ public class GDriveCloneService {
             return title.concat(".pptx");
         } else if (mimeType.equals(PDF_MIMETYPE) && !title.endsWith(".pdf")) {
             return title.concat(".pdf");
+        } else if (mimeType.equals(DOTX_MIMETYPE) && !title.endsWith(".dotx")) {
+            return title.concat(".dotx");
         } else {
             String newTitle = title.substring(0, title.length() - 4);
             if (mimeType.equals(DOC_MIMETYPE)) {
@@ -829,7 +835,9 @@ public class GDriveCloneService {
                     }
                 }
             } catch (Exception e) {
-                LOG.error("error occurred while creating file or folder node", e);
+                LOG.error("error occurred while creating file or folder node and will be ignored from cloning process", e);
+                ignoredFileNumber++;
+                setIgnoredFileNumber(ignoredFileNumber);
             }
             break;
         } while (true);
@@ -848,7 +856,7 @@ public class GDriveCloneService {
     public int getAvailable() {
         int total = childIterators.stream().mapToInt(iter -> (int) iter.getAvailable()).sum();
         total += parentIterators.stream().mapToInt(Iterators::size).sum();
-        return total;
+        return total - getIgnoredFileNumber();
     }
 
     public void resetAvailable() {
@@ -862,5 +870,13 @@ public class GDriveCloneService {
 
     public void setLinksProcessed(boolean linksProcessed) {
         this.linksProcessed = linksProcessed;
+    }
+
+    public int getIgnoredFileNumber() {
+        return ignoredFileNumber;
+    }
+
+    public void setIgnoredFileNumber(int ignoredFileNumber) {
+        this.ignoredFileNumber = ignoredFileNumber;
     }
 }
