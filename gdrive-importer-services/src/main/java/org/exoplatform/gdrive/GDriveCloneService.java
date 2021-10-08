@@ -614,7 +614,7 @@ public class GDriveCloneService {
             }
         }
 
-        if (extension != null && !title.endsWith("." + extension)) {
+        if (StringUtils.isNotBlank(extension) && !title.endsWith("." + extension)) {
             title = title.concat("." + extension);
         } else {
             title = title.replaceAll("\\s+$", "");
