@@ -603,6 +603,12 @@ public class GDriveCloneService {
             return title.concat(".pdf");
         } else if (mimeType.equals(DOTX_MIMETYPE) && !title.endsWith(".dotx")) {
             return title.concat(".dotx");
+        } else if (mimeType.equals(DOCX_MIMETYPE) && !title.endsWith(".docx")) {
+            return title.concat(".docx");
+        } else if (mimeType.equals(XLSX_MIMETYPE) && !title.endsWith(".xlsx")) {
+            return title.concat(".xlsx");
+        } else if (mimeType.equals(PPTX_MIMETYPE) && !title.endsWith(".pptx")) {
+            return title.concat(".pptx");
         } else {
             String newTitle = title.substring(0, title.length() - 4);
             if (mimeType.equals(DOC_MIMETYPE)) {
