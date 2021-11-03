@@ -582,7 +582,7 @@ public class GDriveCloneService {
     }
 
     private String getMimeTypeToExport(String mimeType) {
-        if (mimeType.equals(G_DOCS_MIME_TYPE) || mimeType.equals(DOC_MIMETYPE)) {
+        if (mimeType.equals(G_DOCS_MIME_TYPE) || mimeType.equals(DOC_MIMETYPE) || mimeType.equals(DOTX_MIMETYPE)) {
             return DOCX_MIMETYPE;
         } else if (mimeType.equals(G_SHEETS_MIME_TYPE) || mimeType.equals(XLS_MIMETYPE)) {
             return XLSX_MIMETYPE;
