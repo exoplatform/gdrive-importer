@@ -27,7 +27,6 @@
   <properties>
     <!-- 3rd party libraries versions -->
     <org.exoplatform.ecms.version>6.3.x-SNAPSHOT</org.exoplatform.ecms.version>
-    <org.exoplatform.depmgt.version>24-M02</org.exoplatform.depmgt.version>
 
     <!-- Sonar properties -->
     <sonar.organization>exoplatform</sonar.organization>
