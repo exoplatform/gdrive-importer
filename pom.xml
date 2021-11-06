@@ -26,7 +26,7 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <org.exoplatform.ecms.version>6.3.x-SNAPSHOT</org.exoplatform.ecms.version>
+    <addon.exo.ecms.version>6.3.x-SNAPSHOT</addon.exo.ecms.version>
 
     <!-- Sonar properties -->
     <sonar.organization>exoplatform</sonar.organization>
@@ -37,7 +37,7 @@
       <dependency>
         <groupId>org.exoplatform.ecms</groupId>
         <artifactId>ecms</artifactId>
-        <version>${org.exoplatform.ecms.version}</version>
+        <version>${addon.exo.ecms.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
