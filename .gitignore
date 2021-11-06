@@ -15,7 +15,7 @@
 # Maven 
 target/
 pom.xml.versionsBackup
-
+dependency-reduced-pom.xml
 # IntelliJ project files 
 *.iml
 *.iws
