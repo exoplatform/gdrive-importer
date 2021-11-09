@@ -49,6 +49,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -367,23 +368,25 @@ public class GDriveCloneService {
     private void fetchParents(String id, Node localNode, String groupId) throws Exception {
         List<File> parents = new ArrayList<>();
         File gf = this.api.file(id);
-        List<File> files = getParentsHierarchy(id, parents);
-        Node createdNode;
-        if (files.size() != 0) {
-            Collections.reverse(files);
-        }
-        for (File file : files) {
-            createdNode = createFolder(file, localNode, groupId);
-            localNode = createdNode;
-            saveChanges(localNode);
-        }
-        if (api.isFolder(gf) && localNode != null) {
-            createdNode = createFolder(gf, localNode, groupId);
-            saveChanges(localNode);
-            fetchChildren(gf.getId(), createdNode, groupId);
-        } else {
-            createFile(gf, localNode, groupId);
-            saveChanges(localNode);
+        if (gf != null) {
+            List<File> files = getParentsHierarchy(id, parents);
+            Node createdNode;
+            if (files.size() != 0) {
+                Collections.reverse(files);
+            }
+            for (File file : files) {
+                createdNode = createFolder(file, localNode, groupId);
+                localNode = createdNode;
+                saveChanges(localNode);
+            }
+            if (api.isFolder(gf) && localNode != null) {
+                createdNode = createFolder(gf, localNode, groupId);
+                saveChanges(localNode);
+                fetchChildren(gf.getId(), createdNode, groupId);
+            } else {
+                createFile(gf, localNode, groupId);
+                saveChanges(localNode);
+            }
         }
     }
 
@@ -398,7 +401,7 @@ public class GDriveCloneService {
         while (iterator.hasNext()) {
             ParentReference parent = (ParentReference) iterator.next();
             File file = this.api.file(parent.getId());
-            if (!parent.getIsRoot()) {
+            if (!parent.getIsRoot() && file != null) {
                 files.add(file);
                 getParentsHierarchy(file.getId(), files);
             }
@@ -460,17 +463,19 @@ public class GDriveCloneService {
         while (children.hasNext() && !Thread.currentThread().isInterrupted()) {
             ChildReference child = children.next();
             File gf = api.file(child.getId());
-            if (!gf.getLabels().getTrashed()) {
-                boolean isFolder = api.isFolder(gf);
-                if (isFolder) {
-                    Node createdNode = createFolder(gf, localNode, groupId);
-                    fetchChildren(gf.getId(), createdNode, groupId);
-                } else {
-                    createFile(gf, localNode, groupId);
+            if (gf != null) {
+                if (!gf.getLabels().getTrashed()) {
+                    boolean isFolder = api.isFolder(gf);
+                    if (isFolder) {
+                        Node createdNode = createFolder(gf, localNode, groupId);
+                        fetchChildren(gf.getId(), createdNode, groupId);
+                    } else {
+                        createFile(gf, localNode, groupId);
+                    }
                 }
+                setClonedFileNumber(clonedFileNumber);
+                saveChanges(localNode);
             }
-            setClonedFileNumber(clonedFileNumber);
-            saveChanges(localNode);
         }
     }
 
@@ -535,6 +540,11 @@ public class GDriveCloneService {
     }
 
     private InputStream getGFileInputStream(String fileId, String mimeType, Long size, String link) {
+        int retry = 1;
+        return readInputStream(fileId, mimeType, size, link, retry);
+    }
+
+    private InputStream readInputStream(String fileId, String mimeType, Long size, String link, int retry) {
         try {
             if (!mimeType.equals(DOC_MIMETYPE) && !mimeType.equals(XLS_MIMETYPE) && !mimeType.equals(PPT_MIMETYPE)) {
                 return this.api.drive.files().get(fileId).executeMediaAsInputStream();
@@ -563,6 +573,21 @@ public class GDriveCloneService {
                         LOG.debug("Could not get an input stream from an external url", e);
                     }
                 }
+            }
+        } catch (SocketTimeoutException ex) {
+            LOG.warn("Read time out detected while reading file");
+            try {
+                Thread.sleep(1000l);
+                if (retry <= 3) {
+                    LOG.info("Retry reading file again with attempt count: {}", retry);
+                    readInputStream(fileId, mimeType, size, link, retry);
+                    retry++;
+                }
+                if (retry > 3) {
+                    LOG.warn("Failed while Retry reading file after attempts count: {}", retry - 1);
+                }
+            } catch (InterruptedException e) {
+                LOG.error("Error occurred while retrying to read a file", e);
             }
         } catch (IOException e) {
             LOG.error("Error requesting file from Files service: ", e);
@@ -610,7 +635,7 @@ public class GDriveCloneService {
         } else if (mimeType.equals(PPTX_MIMETYPE) && !title.endsWith(".pptx")) {
             return title.concat(".pptx");
         } else {
-            String newTitle = title.substring(0, title.length() - 4);
+            String newTitle = title.length() > 4 ? title.substring(0, title.length() - 4) : title;
             if (mimeType.equals(DOC_MIMETYPE)) {
                 return title.endsWith(".doc") ? newTitle.concat(".docx") : title.concat(".docx");
             } else if (mimeType.equals(XLS_MIMETYPE)) {
@@ -653,7 +678,8 @@ public class GDriveCloneService {
         GoogleDriveAPI.ChildIterator children = this.api.children(folderId);
         while (children.hasNext()) {
             ChildReference child = children.next();
-            if (this.api.isFolder(this.api.file(child.getId()))) {
+            File file = this.api.file(child.getId());
+            if (file != null && this.api.isFolder(file)) {
                 if (this.isFileInFolder(child.getId(), fileId)) {
                     found = true;
                     break;

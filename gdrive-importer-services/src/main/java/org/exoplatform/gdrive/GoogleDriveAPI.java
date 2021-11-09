@@ -26,9 +26,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.AbstractInputStreamContent;
-import com.google.api.client.http.HttpResponseException;
-import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.*;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.Key;
@@ -43,6 +41,8 @@ import com.google.api.services.drive.model.*;
 import com.google.api.services.oauth2.Oauth2;
 import com.google.api.services.oauth2.Oauth2Scopes;
 import com.google.api.services.oauth2.model.Userinfoplus;
+import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.services.cms.clouddrives.CloudDriveAccessException;
 import org.exoplatform.services.cms.clouddrives.CloudDriveException;
 import org.exoplatform.services.cms.clouddrives.NotFoundException;
@@ -53,6 +53,7 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -108,6 +109,8 @@ public class GoogleDriveAPI implements DataStoreFactory {
 
   /** The Constant FILE_ERROR_WAIT. */
   protected static final Long      FILE_ERROR_WAIT    = 2000l;
+
+  private static final String     READ_TIMEOUT_PROPERTY     = "copygdrive.files.read.timeout";
 
   /** The Constant LOG. */
   protected static final Log       LOG                = ExoLogger.getLogger(GoogleDriveAPI.class);
@@ -804,10 +807,23 @@ public class GoogleDriveAPI implements DataStoreFactory {
 
     // XXX .setHttpRequestInitializer(new RequestInitializer() this causes
     // OAuth2 401 Unauthorized
-    this.drive = new Drive.Builder(new NetHttpTransport(), new JacksonFactory(), this.credential).setApplicationName(APP_NAME)
+    this.drive = new Drive.Builder(new NetHttpTransport(), new JacksonFactory(), setHttpTimeout(this.credential)).setApplicationName(APP_NAME)
                                                                                                  .build();
     this.oauth2 = new Oauth2.Builder(new NetHttpTransport(), new JacksonFactory(), this.credential).setApplicationName(APP_NAME)
                                                                                                    .build();
+  }
+
+  private HttpRequestInitializer setHttpTimeout(final HttpRequestInitializer requestInitializer) {
+    String timeout = PropertyManager.getProperty(READ_TIMEOUT_PROPERTY);
+    return httpRequest -> {
+      requestInitializer.initialize(httpRequest);
+      if (timeout != null && StringUtils.isNumeric(timeout)) {
+        int value = Integer.parseInt(timeout);
+        httpRequest.setReadTimeout(value * 60000);
+      } else {
+        httpRequest.setReadTimeout(5 * 60000);
+      }
+    };
   }
 
   /**
@@ -840,7 +856,7 @@ public class GoogleDriveAPI implements DataStoreFactory {
 
     // XXX .setHttpRequestInitializer(new RequestInitializer() this causes
     // OAuth2 401 Unauthorized
-    this.drive = new Drive.Builder(new NetHttpTransport(), new JacksonFactory(), credential).setApplicationName(APP_NAME).build();
+    this.drive = new Drive.Builder(new NetHttpTransport(), new JacksonFactory(), setHttpTimeout(credential)).setApplicationName(APP_NAME).build();
     this.oauth2 =
                 new Oauth2.Builder(new NetHttpTransport(), new JacksonFactory(), credential).setApplicationName(APP_NAME).build();
   }
@@ -985,17 +1001,35 @@ public class GoogleDriveAPI implements DataStoreFactory {
    * @throws NotFoundException the not found exception
    */
   public File file(String fileId) throws GoogleDriveException, NotFoundException {
+    int retry = 1;
+    return readFile(fileId, retry);
+  }
+
+  private File readFile(String fileId, int retry) {
     try {
       return drive.files().get(fileId).execute();
     } catch (GoogleJsonResponseException e) {
       if (e.getStatusCode() == 404) {
-        throw new NotFoundException("Cloud file not found: " + fileId, e);
+        LOG.error("Cloud file not found: {}", fileId, e);
       } else {
-        throw new GoogleDriveException("Error getting file from Files service: " + e.getMessage(), e);
+        LOG.error("Error getting file from Files service: ", e);
+      }
+    } catch (SocketTimeoutException timeout) {
+      LOG.warn("Read time out detected while reading file");
+      try {
+        Thread.sleep(1000l);
+        if (retry <= 3) {
+          LOG.info("Retry reading file again with attempt count: {}", retry);
+          readFile(fileId, retry);
+          retry++;
+        }
+      } catch (InterruptedException e) {
+        LOG.error("Error occurred while retrying to read a file", e);
       }
     } catch (IOException e) {
-      throw new GoogleDriveException("Error requesting file from Files service: " + e.getMessage(), e);
+      LOG.error("Error requesting file from Files service: ", e);
     }
+    return null;
   }
 
   /**
