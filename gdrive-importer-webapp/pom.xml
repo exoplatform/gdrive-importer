@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.exoplatform.addons.gdrive-importer</groupId>
     <artifactId>gdrive-importer-parent</artifactId>
-    <version>1.0.x-SNAPSHOT</version>
+    <version>1.0.1</version>
   </parent>
   <artifactId>gdrive-importer-webapp</artifactId>
   <packaging>war</packaging>
