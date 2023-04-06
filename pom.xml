@@ -5,7 +5,7 @@
   <parent>
     <artifactId>maven-parent-pom</artifactId>
     <groupId>org.exoplatform</groupId>
-    <version>24</version>
+    <version>25</version>
     <relativePath />
   </parent>
   <groupId>org.exoplatform.addons.gdrive-importer</groupId>
@@ -26,8 +26,16 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <addon.exo.ecms.version>6.3.4</addon.exo.ecms.version>
-
+    <addon.exo.ecms.version>6.4.x-SNAPSHOT</addon.exo.ecms.version>
+    <!-- **************************************** -->
+    <!-- Google API -->
+    <!-- **************************************** -->
+    <com.google.api.client.version>1.29.3</com.google.api.client.version>
+    <com.google.http.client.version>1.29.2</com.google.http.client.version>
+    <com.google.oauth.client.version>1.32.1</com.google.oauth.client.version>
+    <com.google.api.services.drive.version>v2-rev388-1.25.0</com.google.api.services.drive.version>
+    <com.google.api.services.oauth2.version>v2-rev151-1.25.0</com.google.api.services.oauth2.version>
+    <com.google.http-client.jackson2.version>1.29.2</com.google.http-client.jackson2.version>
     <!-- Sonar properties -->
     <sonar.organization>exoplatform</sonar.organization>
   </properties>
@@ -63,8 +71,45 @@
         <scope>provided</scope>
         <type>zip</type>
       </dependency>
+      <!-- drive connectors dependencies -->
+      <dependency>
+        <groupId>com.google.api-client</groupId>
+        <artifactId>google-api-client</artifactId>
+        <version>${com.google.api.client.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.oauth-client</groupId>
+        <artifactId>google-oauth-client</artifactId>
+        <version>${com.google.oauth.client.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client</artifactId>
+        <version>${com.google.http.client.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.apis</groupId>
+        <artifactId>google-api-services-oauth2</artifactId>
+        <version>${com.google.api.services.oauth2.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.apis</groupId>
+        <artifactId>google-api-services-drive</artifactId>
+        <version>${com.google.api.services.drive.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client-jackson2</artifactId>
+        <version>${com.google.http-client.jackson2.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.microsoft.graph</groupId>
+        <artifactId>microsoft-graph</artifactId>
+        <version>${com.microsoft.graph.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
+
   
   <!-- This profile is used to allow github action to build branches. The github action is used for sonar analysis -->
   <profiles>

@@ -1,6 +1,6 @@
 package org.exoplatform.rest;
 
-import io.swagger.annotations.Api;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.ecm.connector.clouddrives.DriveServiceLocator;
@@ -32,7 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Path("/copygdrive/clone")
-@Api(value = "/copgdrive/connect", description = "Manages copy gdrive extension connection")
+@Tag(name = "/copgdrive/connect", description = "Manages copy gdrive extension connection")
 @Produces(MediaType.APPLICATION_JSON)
 public class CopyGDriveRestConnect implements ResourceContainer {
 

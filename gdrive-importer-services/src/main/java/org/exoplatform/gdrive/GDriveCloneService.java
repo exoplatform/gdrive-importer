@@ -198,11 +198,11 @@ public class GDriveCloneService {
 
                         CTHyperlink ctHyperlink = para.getCTP().getHyperlinkArray(countLink);
                         ctHyperlink.setId(linkId);
-                        CTText ctText = CTText.Factory.newInstance();
+                        CTText ctText = (CTText) CTText.Factory.newInstance();
                         ctText.setStringValue(text);
-                        CTR ctr = CTR.Factory.newInstance();
+                        CTR ctr = (CTR) CTR.Factory.newInstance();
                         CTRPr ctrPr = ctr.addNewRPr();
-                        CTColor color = CTColor.Factory.newInstance();
+                        CTColor color = (CTColor) CTColor.Factory.newInstance();
                         color.setVal("0000FF");
                         ctrPr.setColor(color);
                         ctrPr.addNewU().setVal(STUnderline.SINGLE);
