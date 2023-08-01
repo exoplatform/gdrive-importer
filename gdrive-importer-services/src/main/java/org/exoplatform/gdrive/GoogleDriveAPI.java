@@ -635,7 +635,6 @@ public class GoogleDriveAPI implements DataStoreFactory {
      * drive server. After setting any optional parameters, call the
      * {@link #execute()} method to invoke the remote operation.
      * <p>
-     * {@link #initialize(com.google.api.client.googleapis.services.AbstractGoogleClientRequest)}
      * must be called to initialize this instance immediately after invoking the
      * constructor.
      * </p>

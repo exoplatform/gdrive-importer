@@ -148,7 +148,6 @@ public class CloneResponse extends ServiceResponse {
      * Builds the.
      *
      * @return the response
-     * @inherritDoc
      */
 
     @Override
