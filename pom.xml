@@ -26,7 +26,7 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <addon.exo.ecms.version>6.4.x-SNAPSHOT</addon.exo.ecms.version>
+    <addon.exo.ecms.version>6.4.4</addon.exo.ecms.version>
     <!-- **************************************** -->
     <!-- Google API -->
     <!-- **************************************** -->
