@@ -31,9 +31,12 @@ import org.exoplatform.services.cms.drives.DriveData;
 import org.exoplatform.services.cms.drives.ManageDriveService;
 import org.exoplatform.services.cms.impl.Utils;
 import org.exoplatform.services.jcr.RepositoryService;
+import org.exoplatform.services.jcr.core.ManageableRepository;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.security.ConversationState;
+import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.wcm.core.NodetypeConstant;
 import org.exoplatform.storage.ClonedGFileStorage;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.*;
@@ -135,13 +138,18 @@ public class GDriveCloneService {
         this.repositoryService = repositoryService;
     }
 
-    public DriveData cloneCloudDrive(GoogleUser user, String workspace, String driveNodeUUID, String folderOrFileId, String groupId) {
-        SessionProvider sessionProvider = SessionProvider.createSystemProvider();
+    public DriveData cloneCloudDrive(GoogleUser user, String workspace, String driveNodeUUID, String folderOrFileId, String groupId, Identity identity) {
+        ConversationState state = new ConversationState(identity);
+        ConversationState.setCurrent(state);
+        SessionProvider sessionProvider = new SessionProvider(state);
         try {
-            Session session = sessionProvider.getSession(workspace, repositoryService.getCurrentRepository());
+            ManageableRepository currentRepository = repositoryService.getCurrentRepository();
+            String workspaceName = currentRepository.getConfiguration().getDefaultWorkspaceName();
+            sessionProvider.setCurrentRepository(currentRepository);
+            sessionProvider.setCurrentWorkspace(workspaceName);
+            Session session = sessionProvider.getSession(workspaceName, currentRepository);
             Node driveNode = session.getNodeByUUID(driveNodeUUID);
             this.api = user.api();
-            //String workspace = driveNode.getSession().getWorkspace().getName();
             initDrive(user, driveNode);
             try {
                 manageDriveService.addDrive(user.createDriveTitle(), workspace, "", driveNode.getPath(),

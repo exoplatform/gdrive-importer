@@ -11,6 +11,7 @@ import org.exoplatform.gdrive.GoogleUser;
 import org.exoplatform.services.cms.drives.DriveData;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.wcm.core.NodetypeConstant;
 
 import javax.jcr.Node;
@@ -38,6 +39,7 @@ public class CloneCommand extends AbstractCommand {
     private String groupId;
     private String driveNodeUUID;
     private String workspace;
+    private Identity identity;
 
     private boolean finished = false;
     private int commandState = 0;
@@ -52,7 +54,7 @@ public class CloneCommand extends AbstractCommand {
 
     protected void process() {
         commandState = 1;
-        driveData = gDriveCloneService.cloneCloudDrive(user, workspace, driveNodeUUID, folderOrFileId, groupId);
+        driveData = gDriveCloneService.cloneCloudDrive(user, workspace, driveNodeUUID, folderOrFileId, groupId, identity);
     }
 
     @Override
@@ -95,7 +97,7 @@ public class CloneCommand extends AbstractCommand {
         return commandState == 0 && finished == true && driveData != null && linksProcessed();
     }
 
-    public Future<Command> start(GoogleUser user, Node driveNode, String folderOrFileId, String groupId) throws RepositoryException {
+    public Future<Command> start(GoogleUser user, Node driveNode, String folderOrFileId, String groupId, Identity identity) throws RepositoryException {
         this.user = user;
         if (driveNode.canAddMixin(NodetypeConstant.MIX_REFERENCEABLE)) {
             driveNode.addMixin(NodetypeConstant.MIX_REFERENCEABLE);
@@ -107,6 +109,7 @@ public class CloneCommand extends AbstractCommand {
         this.workspace = driveNode.getSession().getWorkspace().getName();
         this.folderOrFileId = folderOrFileId;
         this.groupId = groupId;
+        this.identity = identity;
         return async = executorService.submit(new CommandCallable(this, container));
     }
 

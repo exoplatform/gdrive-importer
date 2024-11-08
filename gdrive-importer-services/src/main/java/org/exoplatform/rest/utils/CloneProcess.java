@@ -3,10 +3,10 @@ package org.exoplatform.rest.utils;
 import org.exoplatform.gdrive.GoogleUser;
 import org.exoplatform.listener.CloneGDriveListener;
 import org.exoplatform.services.cms.drives.DriveData;
+import org.exoplatform.services.security.Identity;
 
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
-import javax.jcr.Session;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -22,9 +22,9 @@ public class CloneProcess implements CloneGDriveListener {
     String           error;
 
 
-    public CloneProcess(GoogleUser user, Node driveNode, String folderOrFileId, String groupId, CloneCommand process) throws RepositoryException {
+    public CloneProcess(GoogleUser user, Node driveNode, String folderOrFileId, String groupId, CloneCommand process, Identity identity) throws RepositoryException {
         this.process = process;
-        this.process.start(user, driveNode, folderOrFileId, groupId);
+        this.process.start(user, driveNode, folderOrFileId, groupId, identity);
     }
 
     public String getError() {
