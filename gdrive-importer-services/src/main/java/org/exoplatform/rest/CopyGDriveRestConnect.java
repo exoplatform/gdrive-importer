@@ -374,7 +374,7 @@ public class CopyGDriveRestConnect implements ResourceContainer {
 
                 try {
                     CloneCommand command = new CloneCommand();
-                    cloneProcess = new CloneProcess(user, driveNode, folderOrFileId, groupId, command);
+                    cloneProcess = new CloneProcess(user, driveNode, folderOrFileId, groupId, command, state.getIdentity());
                     ClonedDrive clonedDrive = new ClonedDrive();
                     active.put(processId, cloneProcess);
                     DriveData driveData = cloneProcess.getDrive();

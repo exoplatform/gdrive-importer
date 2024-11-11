@@ -54,7 +54,7 @@ public class CloneGDriveActionComponent extends UIAbstractManagerComponent {
             String workspace = rootNode.getSession().getWorkspace().getName();
             JavascriptManager jsManager = event.getRequestContext().getJavascriptManager();
             jsManager.require("SHARED/ClonedDrive", "cpgdrive").
-                    addScripts("cpgdrive.init('" + workspace + "','" + rootNode.getPath() + "');\n");
+                    addScripts("cpgdrive.init('" + workspace + "','" + uiJCRExplorer.getCurrentPath() + "');\n");
             UIPopupContainer uiPopupContainer = uiJCRExplorer.getChild(UIPopupContainer.class);
             UICloudLinkForm uiCloudLinkForm = uiPopupContainer.createUIComponent(UICloudLinkForm.class, null, null);
             uiPopupContainer.activate(uiCloudLinkForm, 450, 300, false);
